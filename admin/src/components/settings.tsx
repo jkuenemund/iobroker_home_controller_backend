@@ -62,12 +62,16 @@ class Settings extends React.Component<SettingsProps, SettingsState> {
 		this.state = {};
 	}
 
-	renderInput(title: AdminWord, attr: string, type: string): React.JSX.Element {
+	renderInput(title: AdminWord, attr: string, type: string): React.JSX.Element | null {
+		if (!this.props.native) {
+			return null;
+		}
+
 		return (
 			<TextField
 				label={I18n.t(title)}
 				className={`${this.props.classes.input} ${this.props.classes.controlElement}`}
-				value={this.props.native[attr]}
+				value={this.props.native[attr] || ""}
 				type={type || "text"}
 				onChange={e => this.props.onChange(attr, e.target.value)}
 				margin="normal"
@@ -137,11 +141,10 @@ class Settings extends React.Component<SettingsProps, SettingsState> {
 	render(): React.JSX.Element {
 		return (
 			<form className={this.props.classes.tab}>
-				{this.renderInput("basePath" as any, "basePath", "text")}
-				<br />
-				{this.renderCheckbox("option1", "option1")}
-				<br />
-				{this.renderInput("option2", "option2", "text")}
+				<div className={this.props.classes.columnSettings}>
+					<h4>{I18n.t("home_controller_backend adapter settings")}</h4>
+					{this.renderInput("basePath" as any, "basePath", "text")}
+				</div>
 			</form>
 		);
 	}

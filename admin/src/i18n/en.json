@@ -1,5 +1,4 @@
 {
 	"home_controller_backend adapter settings": "Adapter settings for home_controller_backend",
-	"option1": "option1",
-	"option2": "option2"
+	"basePath": "Path to device objects"
 }

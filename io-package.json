@@ -92,10 +92,7 @@
 		]
 	},
 	"native": {
-		"option1": true,
-		"option2": "42",
-		"basePath": "0_userdata.0.home_controller",
-		"webInstance": "*"
+		"basePath": "0_userdata.0.home_controller"
 	},
 	"objects": [],
 	"instanceObjects": []

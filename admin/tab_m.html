@@ -137,45 +137,178 @@
             font-weight: bold;
             margin-right: 10px;
         }
+
+        .table-container {
+            margin-top: 30px;
+            max-height: 300px;
+            /* Limit height for scrolling */
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
+        #deviceTable {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+
+        #deviceTable th,
+        #deviceTable td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+
+        #deviceTable th {
+            background-color: #f8f8f8;
+            font-weight: 600;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        #deviceTable tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        #deviceTable tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .table-container {
+            margin-top: 30px;
+            overflow-x: auto;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #667eea;
+            color: white;
+            font-weight: 600;
+            border-radius: 4px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
         <span class="emoji">👋</span>
-        <h1>Hello World!</h1>
-        <p>Welcome to the Home Controller Backend</p>
+        <h1>Home Controller</h1>
 
-        <div class="info-box">
-            <strong>🎉 Sidebar Tab Active</strong>
-            <p>This is your custom admin tab in the ioBroker sidebar. It's working perfectly!</p>
-            <span class="status" id="status">● Connected</span>
+        <div class="info-box" style="border-left-color: #764ba2;">
+            <strong>⚙️ Configuration</strong>
+            <p>Base Path: <code id="basePath"
+                    style="background: #eee; padding: 2px 6px; border-radius: 4px;">Loading...</code></p>
         </div>
 
-        <ul class="feature-list">
-            <li>Sidebar tab successfully configured</li>
-            <li>Socket.io connection ready</li>
-            <li>Ready for custom UI development</li>
-        </ul>
+        <div class="table-container">
+            <table id="deviceTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="2" style="text-align: center; color: #999;">Loading devices...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <span class="status" id="status">● Connecting...</span>
+        </div>
     </div>
 
     <script>
         // Initialize socket.io connection
         const socket = io.connect();
         const statusEl = document.getElementById('status');
+        const basePathEl = document.getElementById('basePath');
+        const tableBody = document.querySelector('#deviceTable tbody');
 
         socket.on('connect', () => {
             console.log('Connected to ioBroker');
             statusEl.textContent = '● Connected';
             statusEl.style.background = '#10b981';
+
+            // Fetch adapter config
+            socket.emit('getObject', 'system.adapter.home_controller_backend.0', (err, obj) => {
+                if (!err && obj && obj.native) {
+                    const basePath = obj.native.basePath;
+                    console.log('Adapter config loaded:', obj.native);
+                    basePathEl.textContent = basePath || 'Not set';
+
+                    if (basePath) {
+                        loadDevices(basePath);
+                    }
+                } else {
+                    basePathEl.textContent = 'Error loading config';
+                    console.error('Error loading adapter config:', err);
+                }
+            });
         });
+
+        function loadDevices(basePath) {
+            console.log('Loading devices from:', basePath);
+            socket.emit('getStates', basePath + '.*', (err, states) => {
+                if (err) {
+                    console.error('Error fetching states:', err);
+                    tableBody.innerHTML = `<tr><td colspan="2" style="color: red;">Error: ${err}</td></tr>`;
+                    return;
+                }
+
+                console.log('States received:', states);
+                tableBody.innerHTML = ''; // Clear loading message
+
+                if (!states || Object.keys(states).length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="2" style="text-align: center;">No devices found under ${basePath}</td></tr>`;
+                    return;
+                }
+
+                Object.keys(states).sort().forEach(id => {
+                    // Show relative ID if possible
+                    const relativeId = id.startsWith(basePath + '.') ? id.substring(basePath.length + 1) : id;
+                    const val = states[id] ? states[id].val : 'null';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td style="text-align: left; font-family: monospace;">${relativeId}</td>
+                        <td style="text-align: right;">${val}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            });
+        }
 
         socket.on('disconnect', () => {
             console.log('Disconnected from ioBroker');
             statusEl.textContent = '● Disconnected';
             statusEl.style.background = '#ef4444';
         });
-
         // Log connection info
         console.log('Home Controller Tab loaded');
     </script>

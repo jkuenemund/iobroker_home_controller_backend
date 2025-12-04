@@ -1,0 +1,19 @@
+{
+    "i18n": true,
+    "type": "tabs",
+    "items": {
+        "main": {
+            "type": "panel",
+            "label": "Home Controller Settings",
+            "items": {
+                "basePath": {
+                    "type": "text",
+                    "label": "Path to device objects",
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4
+                }
+            }
+        }
+    }
+}

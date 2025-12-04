@@ -69,7 +69,7 @@
 		"connectionType": "local",
 		"dataSource": "push",
 		"adminUI": {
-			"config": "materialize",
+			"config": "json",
 			"tab": "materialize"
 		},
 		"adminTab": {

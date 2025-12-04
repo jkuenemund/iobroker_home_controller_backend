@@ -18,171 +18,80 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f4f6f8;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
+            color: #333;
         }
 
         .container {
             background: white;
-            padding: 60px 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            max-width: 600px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             width: 100%;
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            max-width: 100%;
+            /* Full width */
+            margin: 0 auto;
         }
 
         h1 {
             color: #333;
-            font-size: 3em;
+            font-size: 1.8em;
             margin-bottom: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .emoji {
-            font-size: 4em;
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
-            display: block;
-            animation: wave 2s ease-in-out infinite;
-        }
-
-        @keyframes wave {
-
-            0%,
-            100% {
-                transform: rotate(0deg);
-            }
-
-            25% {
-                transform: rotate(20deg);
-            }
-
-            75% {
-                transform: rotate(-20deg);
-            }
-        }
-
-        p {
-            color: #666;
-            font-size: 1.2em;
-            line-height: 1.6;
-            margin-bottom: 30px;
-        }
-
-        .info-box {
-            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            text-align: left;
-        }
-
-        .info-box strong {
-            color: #667eea;
-            display: block;
-            margin-bottom: 10px;
-            font-size: 1.1em;
-        }
-
-        .status {
-            display: inline-block;
-            padding: 8px 16px;
-            background: #10b981;
-            color: white;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        .feature-list {
-            text-align: left;
-            margin: 20px 0;
-        }
-
-        .feature-list li {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-            color: #555;
-        }
-
-        .feature-list li:last-child {
-            border-bottom: none;
-        }
-
-        .feature-list li::before {
-            content: "✓ ";
-            color: #10b981;
-            font-weight: bold;
-            margin-right: 10px;
-        }
-
-        .table-container {
-            margin-top: 30px;
-            max-height: 300px;
-            /* Limit height for scrolling */
-            overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 8px;
-        }
-
-        #deviceTable {
-            width: 100%;
-            border-collapse: collapse;
             background: #fff;
-        }
-
-        #deviceTable th,
-        #deviceTable td {
-            padding: 12px 15px;
+            padding-bottom: 20px;
             border-bottom: 1px solid #eee;
-            text-align: left;
         }
 
-        #deviceTable th {
-            background-color: #f8f8f8;
+        .config-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background: #e0e0e0;
+            cursor: pointer;
+            border-radius: 4px;
             font-weight: 600;
-            color: #333;
-            position: sticky;
-            top: 0;
-            z-index: 1;
+            color: #555;
+            transition: all 0.2s;
         }
 
-        #deviceTable tbody tr:last-child td {
-            border-bottom: none;
+        .tab-button:hover {
+            background: #d0d0d0;
         }
 
-        #deviceTable tbody tr:hover {
-            background-color: #f5f5f5;
+        .tab-button.active {
+            background: #667eea;
+            color: white;
         }
 
+        /* Table */
         .table-container {
-            margin-top: 30px;
             overflow-x: auto;
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 4px;
         }
 
         table {
@@ -194,32 +103,47 @@
         th,
         td {
             padding: 12px 15px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #eee;
             text-align: left;
         }
 
         th {
-            background-color: #667eea;
-            color: white;
+            background-color: #f8f9fa;
             font-weight: 600;
-            border-radius: 4px;
+            color: #444;
+            position: sticky;
+            top: 0;
         }
 
-        tr:last-child td {
-            border-bottom: none;
+        tr:hover {
+            background-color: #f5f9ff;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+            color: white;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <span class="emoji">👋</span>
-        <h1>Home Controller</h1>
+        <div class="header-controls">
+            <h1><span style="font-size: 1.2em;">👋</span> Home Controller</h1>
+            <div class="config-info">
+                Base Path: <code id="basePath"
+                    style="background: #eee; padding: 2px 6px; border-radius: 4px;">Loading...</code>
+                <span class="status" id="status" style="background: #999; margin-left: 10px;">Connecting...</span>
+            </div>
+        </div>
 
-        <div class="info-box" style="border-left-color: #764ba2;">
-            <strong>⚙️ Configuration</strong>
-            <p>Base Path: <code id="basePath"
-                    style="background: #eee; padding: 2px 6px; border-radius: 4px;">Loading...</code></p>
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('devices')">Devices</button>
+            <button class="tab-button" onclick="switchTab('rooms')">Rooms</button>
         </div>
 
         <div class="table-container">
@@ -232,14 +156,10 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="2" style="text-align: center; color: #999;">Loading devices...</td>
+                        <td colspan="2" style="text-align: center; color: #999;">Select a tab to load data</td>
                     </tr>
                 </tbody>
             </table>
-        </div>
-
-        <div style="margin-top: 20px;">
-            <span class="status" id="status">● Connecting...</span>
         </div>
     </div>
 
@@ -250,20 +170,23 @@
         const basePathEl = document.getElementById('basePath');
         const tableBody = document.querySelector('#deviceTable tbody');
 
+        let currentBasePath = '';
+        let currentTab = 'devices';
+
         socket.on('connect', () => {
             console.log('Connected to ioBroker');
-            statusEl.textContent = '● Connected';
+            statusEl.textContent = 'Connected';
             statusEl.style.background = '#10b981';
 
             // Fetch adapter config
             socket.emit('getObject', 'system.adapter.home_controller_backend.0', (err, obj) => {
                 if (!err && obj && obj.native) {
-                    const basePath = obj.native.basePath;
+                    currentBasePath = obj.native.basePath;
                     console.log('Adapter config loaded:', obj.native);
-                    basePathEl.textContent = basePath || 'Not set';
+                    basePathEl.textContent = currentBasePath || 'Not set';
 
-                    if (basePath) {
-                        loadDevices(basePath);
+                    if (currentBasePath) {
+                        loadData();
                     }
                 } else {
                     basePathEl.textContent = 'Error loading config';
@@ -272,33 +195,130 @@
             });
         });
 
-        function loadDevices(basePath) {
-            console.log('Loading devices from:', basePath);
-            socket.emit('getStates', basePath + '.*', (err, states) => {
+        const columns = {
+            devices: [
+                { key: 'id', label: 'ID' },
+                { key: 'icon', label: 'Icon' },
+                { key: 'name', label: 'Name' },
+                { key: 'type', label: 'Type' },
+                { key: 'room', label: 'Room' },
+                { key: 'manufacturer', label: 'Manufacturer' },
+                { key: 'description', label: 'Description' },
+                { key: 'details', label: 'Details' }
+            ],
+            rooms: [
+                { key: 'id', label: 'ID' },
+                { key: 'icon', label: 'Icon' },
+                { key: 'name', label: 'Name' },
+                { key: 'metrics', label: 'Metrics' },
+                { key: 'details', label: 'Details' }
+            ]
+        };
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+
+            // Update UI
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.toLowerCase() === tabName) {
+                    btn.classList.add('active');
+                }
+            });
+
+            if (currentBasePath) {
+                loadData();
+            }
+        }
+
+        function loadData() {
+            const targetPath = `${currentBasePath}.${currentTab}`;
+            console.log('Loading data from:', targetPath);
+
+            // Update Table Header
+            const tableHead = document.querySelector('#deviceTable thead tr');
+            tableHead.innerHTML = '';
+            columns[currentTab].forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col.label;
+                tableHead.appendChild(th);
+            });
+
+            tableBody.innerHTML = `<tr><td colspan="${columns[currentTab].length}" style="text-align: center; color: #666;">Loading ${currentTab}...</td></tr>`;
+
+            socket.emit('getStates', targetPath + '.*', (err, states) => {
                 if (err) {
                     console.error('Error fetching states:', err);
-                    tableBody.innerHTML = `<tr><td colspan="2" style="color: red;">Error: ${err}</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="${columns[currentTab].length}" style="color: red;">Error: ${err}</td></tr>`;
                     return;
                 }
 
                 console.log('States received:', states);
-                tableBody.innerHTML = ''; // Clear loading message
+                tableBody.innerHTML = '';
 
                 if (!states || Object.keys(states).length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="2" style="text-align: center;">No devices found under ${basePath}</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="${columns[currentTab].length}" style="text-align: center;">No ${currentTab} found under ${targetPath}</td></tr>`;
                     return;
                 }
 
                 Object.keys(states).sort().forEach(id => {
-                    // Show relative ID if possible
-                    const relativeId = id.startsWith(basePath + '.') ? id.substring(basePath.length + 1) : id;
-                    const val = states[id] ? states[id].val : 'null';
+                    // Show relative ID
+                    const relativeId = id.startsWith(targetPath + '.') ? id.substring(targetPath.length + 1) : id;
+                    const val = states[id] ? states[id].val : null;
+
+                    let data = {};
+                    try {
+                        data = val ? JSON.parse(val) : {};
+                    } catch (e) {
+                        console.warn('Failed to parse JSON for', id, val);
+                        data = { name: 'Invalid JSON' };
+                    }
+
+                    // Add ID to data object for easy access
+                    data.id = relativeId;
+
+                    // Prepare details object (all props NOT in columns)
+                    const detailsObj = { ...data };
+                    columns[currentTab].forEach(col => {
+                        if (col.key !== 'details') {
+                            delete detailsObj[col.key];
+                        }
+                    });
 
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td style="text-align: left; font-family: monospace;">${relativeId}</td>
-                        <td style="text-align: right;">${val}</td>
-                    `;
+
+                    columns[currentTab].forEach(col => {
+                        const td = document.createElement('td');
+
+                        if (col.key === 'details') {
+                            const detailsJson = JSON.stringify(detailsObj, null, 2);
+                            // Only show if not empty
+                            if (Object.keys(detailsObj).length > 0) {
+                                td.innerHTML = `<pre style="margin: 0; font-size: 0.8em; max-height: 100px; overflow: auto;">${detailsJson}</pre>`;
+                            } else {
+                                td.textContent = '-';
+                            }
+                        } else {
+                            let cellValue = data[col.key] || '-';
+
+                            // Special formatting
+                            if (col.key === 'metrics' && Array.isArray(cellValue)) {
+                                cellValue = cellValue.length + ' metrics';
+                            }
+                            if (col.key === 'icon') {
+                                td.style.fontSize = '1.5em';
+                                td.style.textAlign = 'center';
+                            }
+                            if (col.key === 'id') {
+                                td.style.fontFamily = 'monospace';
+                            }
+
+                            td.textContent = cellValue;
+                        }
+
+                        row.appendChild(td);
+                    });
+
                     tableBody.appendChild(row);
                 });
             });
@@ -306,10 +326,10 @@
 
         socket.on('disconnect', () => {
             console.log('Disconnected from ioBroker');
-            statusEl.textContent = '● Disconnected';
+            statusEl.textContent = 'Disconnected';
             statusEl.style.background = '#ef4444';
         });
-        // Log connection info
+
         console.log('Home Controller Tab loaded');
     </script>
 </body>

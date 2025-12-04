@@ -127,6 +127,197 @@
             font-weight: 600;
             color: white;
         }
+
+        /* Add Button */
+        .add-button {
+            padding: 10px 20px;
+            border: none;
+            background: #10b981;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 600;
+            color: white;
+            transition: all 0.2s;
+            margin-left: auto;
+        }
+
+        .add-button:hover {
+            background: #059669;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+
+        .action-btn.export {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .action-btn.export:hover {
+            background: #2563eb;
+        }
+
+        .action-btn.import {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .action-btn.import:hover {
+            background: #7c3aed;
+        }
+
+        .action-btn.add {
+            background: #10b981;
+            color: white;
+        }
+
+        .action-btn.add:hover {
+            background: #059669;
+        }
+
+        /* Success message */
+        .success-message {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .success-message.visible {
+            display: block;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            font-family: monospace;
+            min-height: 300px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #b91c1c;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #555;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
     </style>
 </head>
 
@@ -144,6 +335,13 @@
         <div class="tabs">
             <button class="tab-button active" onclick="switchTab('devices')">Devices</button>
             <button class="tab-button" onclick="switchTab('rooms')">Rooms</button>
+            <div class="action-buttons">
+                <button class="action-btn export" onclick="exportData()">⬇️ Export</button>
+                <button class="action-btn import" onclick="document.getElementById('importFile').click()">⬆️
+                    Import</button>
+                <button class="action-btn add" onclick="openAddDialog()">➕ Add</button>
+            </div>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(event)">
         </div>
 
         <div class="table-container">
@@ -160,6 +358,26 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Add Modal -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <h2 id="modalTitle">Add New Device</h2>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="form-group">
+                <label for="itemId">ID (unique identifier, e.g., kitchen_light)</label>
+                <input type="text" id="itemId" placeholder="Enter unique ID...">
+            </div>
+            <div class="form-group">
+                <label for="itemConfig">Configuration (JSON)</label>
+                <textarea id="itemConfig"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeAddDialog()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewItem()">Save</button>
+            </div>
         </div>
     </div>
 
@@ -322,6 +540,289 @@
                     tableBody.appendChild(row);
                 });
             });
+        }
+
+        // JSON Templates
+        const templates = {
+            devices: {
+                name: 'New Device',
+                type: 'light',
+                room: 'livingroom',
+                icon: '💡',
+                capabilities: [
+                    {
+                        type: 'toggle',
+                        state: 'adapter.0.device.state',
+                        description: 'On/Off control'
+                    }
+                ],
+                manufacturer: 'Unknown',
+                model: 'Unknown',
+                description: 'Device description'
+            },
+            rooms: {
+                name: 'New Room',
+                icon: '🏠',
+                metrics: []
+            }
+        };
+
+        // Validation rules
+        function validateConfig(type, config) {
+            const errors = [];
+
+            if (type === 'devices') {
+                if (!config.name || typeof config.name !== 'string') {
+                    errors.push('"name" is required and must be a string');
+                }
+                if (!config.type || typeof config.type !== 'string') {
+                    errors.push('"type" is required and must be a string (e.g., light, window, socket)');
+                }
+                if (!config.room || typeof config.room !== 'string') {
+                    errors.push('"room" is required and must be a string');
+                }
+                if (!config.icon || typeof config.icon !== 'string') {
+                    errors.push('"icon" is required and must be a string (emoji)');
+                }
+                if (!Array.isArray(config.capabilities) || config.capabilities.length === 0) {
+                    errors.push('"capabilities" is required and must be a non-empty array');
+                } else {
+                    config.capabilities.forEach((cap, i) => {
+                        if (!cap.type) errors.push(`Capability ${i + 1}: "type" is required`);
+                        if (!cap.state) errors.push(`Capability ${i + 1}: "state" is required`);
+                    });
+                }
+            } else if (type === 'rooms') {
+                if (!config.name || typeof config.name !== 'string') {
+                    errors.push('"name" is required and must be a string');
+                }
+                if (!config.icon || typeof config.icon !== 'string') {
+                    errors.push('"icon" is required and must be a string (emoji)');
+                }
+                if (config.metrics !== undefined && !Array.isArray(config.metrics)) {
+                    errors.push('"metrics" must be an array if provided');
+                }
+            }
+
+            return errors;
+        }
+
+        function openAddDialog() {
+            const modal = document.getElementById('addModal');
+            const title = document.getElementById('modalTitle');
+            const idInput = document.getElementById('itemId');
+            const configInput = document.getElementById('itemConfig');
+            const errorEl = document.getElementById('errorMessage');
+
+            title.textContent = currentTab === 'devices' ? 'Add New Device' : 'Add New Room';
+            idInput.value = '';
+            configInput.value = JSON.stringify(templates[currentTab], null, 2);
+            errorEl.classList.remove('visible');
+            errorEl.textContent = '';
+
+            modal.classList.add('active');
+        }
+
+        function closeAddDialog() {
+            document.getElementById('addModal').classList.remove('active');
+        }
+
+        function saveNewItem() {
+            const idInput = document.getElementById('itemId');
+            const configInput = document.getElementById('itemConfig');
+            const errorEl = document.getElementById('errorMessage');
+
+            const itemId = idInput.value.trim();
+            const configText = configInput.value;
+
+            // Validate ID
+            if (!itemId) {
+                errorEl.textContent = 'ID is required';
+                errorEl.classList.add('visible');
+                return;
+            }
+
+            if (!/^[a-z0-9_]+$/.test(itemId)) {
+                errorEl.textContent = 'ID must contain only lowercase letters, numbers, and underscores';
+                errorEl.classList.add('visible');
+                return;
+            }
+
+            // Parse JSON
+            let config;
+            try {
+                config = JSON.parse(configText);
+            } catch (e) {
+                errorEl.textContent = 'Invalid JSON: ' + e.message;
+                errorEl.classList.add('visible');
+                return;
+            }
+
+            // Validate config
+            const validationErrors = validateConfig(currentTab, config);
+            if (validationErrors.length > 0) {
+                errorEl.innerHTML = 'Validation errors:<br>• ' + validationErrors.join('<br>• ');
+                errorEl.classList.add('visible');
+                return;
+            }
+
+            // Create state in ioBroker
+            const stateId = `${currentBasePath}.${currentTab}.${itemId}`;
+            const stateValue = JSON.stringify(config);
+
+            console.log('Creating state:', stateId, stateValue);
+
+            socket.emit('setState', stateId, stateValue, (err) => {
+                if (err) {
+                    errorEl.textContent = 'Error creating state: ' + err;
+                    errorEl.classList.add('visible');
+                    return;
+                }
+
+                console.log('State created successfully:', stateId);
+                closeAddDialog();
+                loadData(); // Refresh table
+            });
+        }
+
+        // Close modal on overlay click
+        document.getElementById('addModal').addEventListener('click', (e) => {
+            if (e.target.id === 'addModal') {
+                closeAddDialog();
+            }
+        });
+
+        // Export functionality
+        function exportData() {
+            const targetPath = `${currentBasePath}.${currentTab}`;
+            console.log('Exporting data from:', targetPath);
+
+            socket.emit('getStates', targetPath + '.*', (err, states) => {
+                if (err) {
+                    alert('Error fetching data for export: ' + err);
+                    return;
+                }
+
+                const items = {};
+                Object.keys(states).sort().forEach(id => {
+                    const relativeId = id.startsWith(targetPath + '.') ? id.substring(targetPath.length + 1) : id;
+                    const val = states[id] ? states[id].val : null;
+
+                    try {
+                        items[relativeId] = val ? JSON.parse(val) : {};
+                    } catch (e) {
+                        console.warn('Failed to parse JSON for export:', id);
+                        items[relativeId] = { _rawValue: val };
+                    }
+                });
+
+                const exportData = {
+                    type: currentTab,
+                    exportedAt: new Date().toISOString(),
+                    basePath: currentBasePath,
+                    items: items
+                };
+
+                // Download as file
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `home_controller_${currentTab}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log(`Exported ${Object.keys(items).length} ${currentTab}`);
+            });
+        }
+
+        // Import functionality
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importData = JSON.parse(e.target.result);
+
+                    // Validate structure
+                    if (!importData.type || !importData.items) {
+                        alert('Invalid file format. Expected { type, items }');
+                        return;
+                    }
+
+                    if (importData.type !== currentTab) {
+                        if (!confirm(`File contains ${importData.type}, but current tab is ${currentTab}. Switch tab and import?`)) {
+                            return;
+                        }
+                        switchTab(importData.type);
+                    }
+
+                    const items = importData.items;
+                    const itemIds = Object.keys(items);
+
+                    if (itemIds.length === 0) {
+                        alert('No items found in file');
+                        return;
+                    }
+
+                    // Validate all items first
+                    const allErrors = [];
+                    itemIds.forEach(id => {
+                        if (!/^[a-z0-9_]+$/.test(id)) {
+                            allErrors.push(`ID "${id}" is invalid (only lowercase, numbers, underscores)`);
+                        }
+                        const validationErrors = validateConfig(currentTab, items[id]);
+                        validationErrors.forEach(err => {
+                            allErrors.push(`${id}: ${err}`);
+                        });
+                    });
+
+                    if (allErrors.length > 0) {
+                        alert('Validation errors:\n• ' + allErrors.slice(0, 10).join('\n• ') +
+                            (allErrors.length > 10 ? `\n... and ${allErrors.length - 10} more` : ''));
+                        return;
+                    }
+
+                    // Confirm import
+                    if (!confirm(`Import ${itemIds.length} ${currentTab}?\n\nThis will create or update:\n• ${itemIds.slice(0, 5).join('\n• ')}${itemIds.length > 5 ? '\n• ...' : ''}`)) {
+                        return;
+                    }
+
+                    // Import items
+                    let completed = 0;
+                    let errors = 0;
+
+                    itemIds.forEach(id => {
+                        const stateId = `${currentBasePath}.${currentTab}.${id}`;
+                        const stateValue = JSON.stringify(items[id]);
+
+                        socket.emit('setState', stateId, stateValue, (err) => {
+                            if (err) {
+                                console.error('Error importing', id, err);
+                                errors++;
+                            } else {
+                                console.log('Imported:', id);
+                            }
+                            completed++;
+
+                            if (completed === itemIds.length) {
+                                alert(`Import complete!\n✅ ${completed - errors} items imported\n${errors > 0 ? `❌ ${errors} errors` : ''}`);
+                                loadData(); // Refresh table
+                            }
+                        });
+                    });
+                } catch (e) {
+                    alert('Error parsing file: ' + e.message);
+                }
+            };
+            reader.readAsText(file);
+
+            // Reset file input so same file can be selected again
+            event.target.value = '';
         }
 
         socket.on('disconnect', () => {

@@ -39,7 +39,7 @@ interface AdapterInterface {
         basePath: string;
         wsPort: number;
     };
-    getStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
+    getForeignStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
 }
 
 /**
@@ -334,7 +334,7 @@ export class HomeControllerWebSocketServer {
         const basePath = this.adapter.config.basePath;
         const pattern = `${basePath}.devices.*`;
 
-        const states = await this.adapter.getStatesAsync(pattern);
+        const states = await this.adapter.getForeignStatesAsync(pattern);
         const devices: Record<string, DeviceConfig> = {};
 
         for (const [id, state] of Object.entries(states)) {
@@ -360,7 +360,7 @@ export class HomeControllerWebSocketServer {
         const basePath = this.adapter.config.basePath;
         const pattern = `${basePath}.rooms.*`;
 
-        const states = await this.adapter.getStatesAsync(pattern);
+        const states = await this.adapter.getForeignStatesAsync(pattern);
         const rooms: Record<string, RoomConfig> = {};
 
         for (const [id, state] of Object.entries(states)) {
@@ -371,8 +371,8 @@ export class HomeControllerWebSocketServer {
             try {
                 const config = JSON.parse(state.val as string) as RoomConfig;
                 rooms[roomId] = config;
-            } catch {
-                this.adapter.log.warn(`Failed to parse room config for ${roomId}`);
+            } catch (error) {
+                this.adapter.log.warn(`Failed to parse room config for ${roomId}: ${(error as Error).message}`);
             }
         }
 

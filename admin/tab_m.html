@@ -198,6 +198,88 @@
             padding: 8px;
         }
 
+        /* Expandable Device Capabilities */
+        .expand-icon {
+            cursor: pointer;
+            user-select: none;
+            font-size: 1.2em;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .capabilities-row {
+            display: none;
+            background: #f8fafc;
+        }
+
+        .capabilities-row.visible {
+            display: table-row;
+        }
+
+        .capabilities-panel {
+            padding: 16px;
+            border-left: 3px solid #667eea;
+        }
+
+        .capability-item {
+            display: grid;
+            grid-template-columns: 100px 1fr 100px 180px;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9em;
+            align-items: center;
+        }
+
+        .capability-item:last-child {
+            border-bottom: none;
+        }
+
+        .capability-type {
+            font-weight: 600;
+            color: #4f46e5;
+        }
+
+        .capability-state {
+            font-family: 'Courier New', monospace;
+            color: #64748b;
+            font-size: 0.85em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .capability-value {
+            font-weight: 500;
+            color: #0f172a;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.85em;
+        }
+
+        .capability-value.active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .capability-props {
+            color: #94a3b8;
+            font-size: 0.85em;
+        }
+
+        .no-capabilities {
+            color: #94a3b8;
+            font-style: italic;
+            padding: 12px;
+            text-align: center;
+        }
+
         /* Tabs */
         .tabs {
             display: flex;
@@ -570,14 +652,14 @@
 
         const columns = {
             devices: [
+                { key: 'expand', label: '' },
                 { key: 'id', label: 'ID' },
                 { key: 'icon', label: 'Icon' },
                 { key: 'name', label: 'Name' },
                 { key: 'type', label: 'Type' },
                 { key: 'room', label: 'Room' },
                 { key: 'manufacturer', label: 'Manufacturer' },
-                { key: 'description', label: 'Description' },
-                { key: 'details', label: 'Details' }
+                { key: 'description', label: 'Description' }
             ],
             rooms: [
                 { key: 'id', label: 'ID' },
@@ -650,27 +732,17 @@
                     // Add ID to data object for easy access
                     data.id = relativeId;
 
-                    // Prepare details object (all props NOT in columns)
-                    const detailsObj = { ...data };
-                    columns[currentTab].forEach(col => {
-                        if (col.key !== 'details') {
-                            delete detailsObj[col.key];
-                        }
-                    });
-
                     const row = document.createElement('tr');
+                    row.dataset.deviceId = relativeId;
 
                     columns[currentTab].forEach(col => {
                         const td = document.createElement('td');
 
-                        if (col.key === 'details') {
-                            const detailsJson = JSON.stringify(detailsObj, null, 2);
-                            // Only show if not empty
-                            if (Object.keys(detailsObj).length > 0) {
-                                td.innerHTML = `<pre style="margin: 0; font-size: 0.8em; max-height: 100px; overflow: auto;">${detailsJson}</pre>`;
-                            } else {
-                                td.textContent = '-';
-                            }
+                        if (col.key === 'expand' && currentTab === 'devices') {
+                            // Add expand icon for devices
+                            td.innerHTML = '<span class="expand-icon" onclick="toggleCapabilities(this)">▶</span>';
+                            td.style.width = '30px';
+                            td.style.textAlign = 'center';
                         } else {
                             let cellValue = data[col.key] || '-';
 
@@ -693,6 +765,69 @@
                     });
 
                     tableBody.appendChild(row);
+
+                    // Add capabilities row for devices
+                    if (currentTab === 'devices' && data.capabilities) {
+                        const capRow = document.createElement('tr');
+                        capRow.className = 'capabilities-row';
+                        capRow.dataset.deviceId = relativeId;
+
+                        const capTd = document.createElement('td');
+                        capTd.colSpan = columns[currentTab].length;
+
+                        const capPanel = document.createElement('div');
+                        capPanel.className = 'capabilities-panel';
+
+                        if (Array.isArray(data.capabilities) && data.capabilities.length > 0) {
+                            data.capabilities.forEach(cap => {
+                                const capItem = document.createElement('div');
+                                capItem.className = 'capability-item';
+
+                                const typeSpan = document.createElement('div');
+                                typeSpan.className = 'capability-type';
+                                typeSpan.textContent = cap.type || '-';
+
+                                const stateSpan = document.createElement('div');
+                                stateSpan.className = 'capability-state';
+                                stateSpan.textContent = cap.state || '-';
+                                stateSpan.title = cap.state || ''; // Tooltip for long IDs
+
+                                const valueSpan = document.createElement('div');
+                                valueSpan.className = 'capability-value';
+                                valueSpan.textContent = '...';
+                                if (cap.state) {
+                                    valueSpan.dataset.oid = cap.state;
+                                    valueSpan.classList.add('live-val');
+                                }
+
+                                const propsSpan = document.createElement('div');
+                                propsSpan.className = 'capability-props';
+                                const props = [];
+                                if (cap.description) props.push(cap.description);
+                                if (cap.min_value !== undefined) props.push(`min: ${cap.min_value}`);
+                                if (cap.max_value !== undefined) props.push(`max: ${cap.max_value}`);
+                                if (cap.unit) props.push(`unit: ${cap.unit}`);
+                                if (cap.inverted) props.push('inverted');
+                                propsSpan.textContent = props.length > 0 ? props.join(', ') : '-';
+
+                                capItem.appendChild(typeSpan);
+                                capItem.appendChild(stateSpan);
+                                capItem.appendChild(valueSpan);
+                                capItem.appendChild(propsSpan);
+                                capItem.appendChild(propsSpan);
+                                capPanel.appendChild(capItem);
+                            });
+                        } else {
+                            const noCap = document.createElement('div');
+                            noCap.className = 'no-capabilities';
+                            noCap.textContent = 'No capabilities defined';
+                            capPanel.appendChild(noCap);
+                        }
+
+                        capTd.appendChild(capPanel);
+                        capRow.appendChild(capTd);
+                        tableBody.appendChild(capRow);
+                    }
                 });
             });
         }
@@ -821,22 +956,46 @@
                 return;
             }
 
-            // Create state in ioBroker
+            // Create object and state in ioBroker
             const stateId = `${currentBasePath}.${currentTab}.${itemId}`;
             const stateValue = JSON.stringify(config);
 
-            console.log('Creating state:', stateId, stateValue);
+            console.log('Creating object:', stateId);
 
-            socket.emit('setState', stateId, stateValue, (err) => {
+            // First create the object
+            socket.emit('setObject', stateId, {
+                type: 'state',
+                common: {
+                    name: config.name || itemId,
+                    type: 'string', // We store JSON as string
+                    role: 'json',
+                    read: true,
+                    write: true,
+                    desc: 'Created by Home Controller'
+                },
+                native: {}
+            }, (err) => {
                 if (err) {
-                    errorEl.textContent = 'Error creating state: ' + err;
+                    errorEl.textContent = 'Error creating object: ' + err;
                     errorEl.classList.add('visible');
                     return;
                 }
 
-                console.log('State created successfully:', stateId);
-                closeAddDialog();
-                loadData(); // Refresh table
+                console.log('Object created, setting value:', stateValue);
+
+                // Then set the state value
+                socket.emit('setState', stateId, { val: stateValue, ack: true }, (err) => {
+                    if (err) {
+                        errorEl.textContent = 'Error setting state value: ' + err;
+                        errorEl.classList.add('visible');
+                        return;
+                    }
+
+                    console.log('State set successfully:', stateId);
+                    closeAddDialog();
+                    // Small delay to ensure state is indexed/available for list
+                    setTimeout(loadData, 500);
+                });
             });
         }
 
@@ -980,6 +1139,59 @@
             event.target.value = '';
         }
 
+        // Toggle capabilities panel
+        function toggleCapabilities(iconElement) {
+            const row = iconElement.closest('tr');
+            const deviceId = row.dataset.deviceId;
+
+            // Find the capabilities row
+            const capRow = row.nextElementSibling;
+            if (capRow && capRow.classList.contains('capabilities-row') && capRow.dataset.deviceId === deviceId) {
+                const isExpanded = !capRow.classList.contains('visible');
+                capRow.classList.toggle('visible');
+                iconElement.classList.toggle('expanded');
+
+                // Handle subscriptions
+                const valueElements = capRow.querySelectorAll('.live-val');
+                valueElements.forEach(el => {
+                    const oid = el.dataset.oid;
+                    if (oid) {
+                        if (isExpanded) {
+                            // Subscribe and get current value
+                            socket.emit('subscribe', oid);
+                            socket.emit('getState', oid, (err, state) => {
+                                if (!err && state) {
+                                    updateValueDisplay(el, state.val);
+                                }
+                            });
+                        } else {
+                            // Unsubscribe when collapsing (optional, but saves traffic)
+                            socket.emit('unsubscribe', oid);
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateValueDisplay(element, value) {
+            if (value === null || value === undefined) {
+                element.textContent = '-';
+                element.classList.remove('active');
+            } else {
+                element.textContent = value.toString();
+                // Helper visualization for booleans
+                if (typeof value === 'boolean') {
+                    if (value) {
+                        element.textContent = 'TRUE';
+                        element.classList.add('active');
+                    } else {
+                        element.textContent = 'FALSE';
+                        element.classList.remove('active');
+                    }
+                }
+            }
+        }
+
         socket.on('disconnect', () => {
             console.log('Disconnected from ioBroker');
             statusEl.textContent = 'Disconnected';
@@ -1082,6 +1294,18 @@
         socket.on('stateChange', (id, state) => {
             if (id === 'home_controller_backend.0.info.connectedClients' && state) {
                 updateClientsDisplay(state.val);
+            }
+
+            // Update live values in capabilities panel
+            if (state) {
+                // Escape special characters in ID for querySelector
+                const escapedId = id.replace(/([.\\:])/g, '\\$1');
+                try {
+                    const valEls = document.querySelectorAll(`.live-val[data-oid="${id}"]`);
+                    valEls.forEach(el => updateValueDisplay(el, state.val));
+                } catch (e) {
+                    console.error('Error updating value display:', e);
+                }
             }
         });
     </script>

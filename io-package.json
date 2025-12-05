@@ -66,6 +66,7 @@
 		"mode": "daemon",
 		"type": "visualization",
 		"compact": true,
+		"messagebox": true,
 		"connectionType": "local",
 		"dataSource": "push",
 		"adminUI": {
@@ -92,7 +93,8 @@
 		]
 	},
 	"native": {
-		"basePath": "0_userdata.0.home_controller"
+		"basePath": "0_userdata.0.home_controller",
+		"wsPort": 8082
 	},
 	"objects": [],
 	"instanceObjects": []

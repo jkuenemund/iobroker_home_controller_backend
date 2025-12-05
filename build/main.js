@@ -22,7 +22,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 var utils = __toESM(require("@iobroker/adapter-core"));
+var import_websocket_server = require("./lib/websocket-server");
 class HomeControllerBackend extends utils.Adapter {
+  wsServer = null;
   constructor(options = {}) {
     super({
       ...options,
@@ -30,73 +32,93 @@ class HomeControllerBackend extends utils.Adapter {
     });
     this.on("ready", this.onReady.bind(this));
     this.on("stateChange", this.onStateChange.bind(this));
+    this.on("message", this.onMessage.bind(this));
     this.on("unload", this.onUnload.bind(this));
   }
   /**
    * Is called when databases are connected and adapter received configuration.
    */
   async onReady() {
-    this.log.debug(`config basePath: ${this.config.basePath}`);
+    this.log.info("Home Controller Backend starting...");
+    this.log.debug(`Config: basePath=${this.config.basePath}, wsPort=${this.config.wsPort}`);
+    await this.setObjectNotExistsAsync("info.connectedClients", {
+      type: "state",
+      common: {
+        name: "Connected WebSocket clients",
+        type: "string",
+        role: "json",
+        read: true,
+        write: false
+      },
+      native: {}
+    });
+    await this.setStateAsync("info.connectedClients", JSON.stringify([]), true);
+    try {
+      this.wsServer = new import_websocket_server.HomeControllerWebSocketServer(this);
+      this.wsServer.onClientChange((clients) => {
+        const clientInfo = clients.map((c) => ({
+          id: c.id,
+          name: c.name,
+          version: c.version,
+          clientType: c.clientType,
+          connectedAt: c.connectedAt.toISOString(),
+          recentRequests: c.recentRequests.map((r) => ({
+            timestamp: r.timestamp.toISOString(),
+            type: r.type,
+            id: r.id
+          }))
+        }));
+        this.setStateAsync("info.connectedClients", JSON.stringify(clientInfo), true);
+      });
+      this.wsServer.start();
+      this.log.info("Home Controller Backend ready");
+    } catch (error) {
+      this.log.error(`Failed to start WebSocket server: ${error.message}`);
+    }
   }
   /**
    * Is called when adapter shuts down - callback has to be called under any circumstances!
-   *
-   * @param callback - Callback function
    */
   onUnload(callback) {
     try {
+      this.log.info("Home Controller Backend shutting down...");
+      if (this.wsServer) {
+        this.wsServer.stop();
+        this.wsServer = null;
+      }
+      this.log.info("Home Controller Backend stopped");
       callback();
     } catch (error) {
       this.log.error(`Error during unloading: ${error.message}`);
       callback();
     }
   }
-  // If you need to react to object changes, uncomment the following block and the corresponding line in the constructor.
-  // You also need to subscribe to the objects with `this.subscribeObjects`, similar to `this.subscribeStates`.
-  // /**
-  //  * Is called if a subscribed object changes
-  //  */
-  // private onObjectChange(id: string, obj: ioBroker.Object | null | undefined): void {
-  // 	if (obj) {
-  // 		// The object was changed
-  // 		this.log.info(`object ${id} changed: ${JSON.stringify(obj)}`);
-  // 	} else {
-  // 		// The object was deleted
-  // 		this.log.info(`object ${id} deleted`);
-  // 	}
-  // }
   /**
    * Is called if a subscribed state changes
-   *
-   * @param id - State ID
-   * @param state - State object
    */
   onStateChange(id, state) {
     if (state) {
-      this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
-      if (state.ack === false) {
-        this.log.info(`User command received for ${id}: ${state.val}`);
-      }
+      this.log.debug(`State ${id} changed: ${state.val} (ack = ${state.ack})`);
     } else {
-      this.log.info(`state ${id} deleted`);
+      this.log.debug(`State ${id} deleted`);
     }
   }
-  // If you need to accept messages in your adapter, uncomment the following block and the corresponding line in the constructor.
-  // /**
-  //  * Some message was sent to this instance over message box. Used by email, pushover, text2speech, ...
-  //  * Using this method requires "common.messagebox" property to be set to true in io-package.json
-  //  */
-  //
-  // private onMessage(obj: ioBroker.Message): void {
-  // 	if (typeof obj === "object" && obj.message) {
-  // 		if (obj.command === "send") {
-  // 			// e.g. send email or pushover or whatever
-  // 			this.log.info("send command");
-  // 			// Send response in callback if required
-  // 			if (obj.callback) this.sendTo(obj.from, obj.command, "Message received", obj.callback);
-  // 		}
-  // 	}
-  // }
+  /**
+   * Handle messages from admin UI
+   */
+  onMessage(obj) {
+    var _a, _b;
+    if (typeof obj === "object" && obj.message) {
+      if (obj.command === "disconnectClient") {
+        const clientId = obj.message;
+        this.log.info(`Admin request to disconnect client: ${clientId}`);
+        const success = (_b = (_a = this.wsServer) == null ? void 0 : _a.disconnectClient(clientId)) != null ? _b : false;
+        if (obj.callback) {
+          this.sendTo(obj.from, obj.command, { success }, obj.callback);
+        }
+      }
+    }
+  }
 }
 if (require.main !== module) {
   module.exports = (options) => new HomeControllerBackend(options);

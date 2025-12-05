@@ -5,6 +5,7 @@ declare global {
 	namespace ioBroker {
 		interface AdapterConfig {
 			basePath: string;
+			wsPort: number;
 		}
 	}
 }

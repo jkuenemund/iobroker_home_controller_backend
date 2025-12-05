@@ -12,6 +12,17 @@
                     "sm": 12,
                     "md": 6,
                     "lg": 4
+                },
+                "wsPort": {
+                    "type": "number",
+                    "label": "WebSocket Port",
+                    "default": 8082,
+                    "min": 1024,
+                    "max": 65535,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "help": "Port for WebSocket API (default: 8082)"
                 }
             }
         }

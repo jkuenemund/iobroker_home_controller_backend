@@ -59,6 +59,145 @@
             color: #666;
         }
 
+        /* WebSocket Clients Section */
+        .clients-section {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+        }
+
+        .clients-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #0369a1;
+            margin-bottom: 8px;
+        }
+
+        .clients-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .client-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            border: 1px solid #e0e7ff;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.85em;
+        }
+
+        .client-badge .client-icon {
+            font-size: 1.1em;
+        }
+
+        .client-badge .client-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .client-badge .client-version {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .client-badge .client-close {
+            color: #999;
+            cursor: pointer;
+            font-size: 1em;
+            padding: 2px;
+            margin-left: 4px;
+            transition: all 0.2s;
+            border-radius: 50%;
+        }
+
+        .client-badge .client-close:hover {
+            color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .no-clients {
+            color: #64748b;
+            font-style: italic;
+        }
+
+        /* Client Request Logs */
+        .client-wrapper {
+            width: 100%;
+        }
+
+        .client-logs-toggle {
+            color: #6366f1;
+            cursor: pointer;
+            font-size: 0.85em;
+            padding: 2px 6px;
+            margin-left: 4px;
+            transition: all 0.2s;
+            border-radius: 4px;
+            user-select: none;
+        }
+
+        .client-logs-toggle:hover {
+            background: #eef2ff;
+        }
+
+        .client-logs-panel {
+            display: none;
+            margin-top: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 0.8em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .client-logs-panel.visible {
+            display: block;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #64748b;
+            min-width: 60px;
+        }
+
+        .log-type {
+            color: #0ea5e9;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        .log-id {
+            color: #94a3b8;
+        }
+
+        .no-logs {
+            color: #94a3b8;
+            font-style: italic;
+            text-align: center;
+            padding: 8px;
+        }
+
         /* Tabs */
         .tabs {
             display: flex;
@@ -332,6 +471,16 @@
             </div>
         </div>
 
+        <!-- WebSocket Clients Section -->
+        <div class="clients-section">
+            <div class="clients-header">
+                🔌 WebSocket Clients
+            </div>
+            <div class="clients-list" id="clientsList">
+                <span class="no-clients">No clients connected</span>
+            </div>
+        </div>
+
         <div class="tabs">
             <button class="tab-button active" onclick="switchTab('devices')">Devices</button>
             <button class="tab-button" onclick="switchTab('rooms')">Rooms</button>
@@ -406,6 +555,12 @@
                     if (currentBasePath) {
                         loadData();
                     }
+
+                    // Load connected clients
+                    loadConnectedClients();
+
+                    // Subscribe to client changes
+                    socket.emit('subscribe', 'home_controller_backend.0.info.connectedClients');
                 } else {
                     basePathEl.textContent = 'Error loading config';
                     console.error('Error loading adapter config:', err);
@@ -832,6 +987,103 @@
         });
 
         console.log('Home Controller Tab loaded');
+
+        // WebSocket Clients display
+        function loadConnectedClients() {
+            socket.emit('getState', 'home_controller_backend.0.info.connectedClients', (err, state) => {
+                if (err || !state) {
+                    console.log('No connected clients state found');
+                    return;
+                }
+                updateClientsDisplay(state.val);
+            });
+        }
+
+        function updateClientsDisplay(clientsJson) {
+            const clientsList = document.getElementById('clientsList');
+            let clients = [];
+
+            try {
+                clients = JSON.parse(clientsJson) || [];
+            } catch (e) {
+                console.warn('Failed to parse clients JSON:', e);
+                clients = [];
+            }
+
+            if (clients.length === 0) {
+                clientsList.innerHTML = '<span class="no-clients">No clients connected</span>';
+                return;
+            }
+
+            clientsList.innerHTML = clients.map((client, idx) => {
+                const icon = client.clientType === 'mobile' ? '📱' :
+                    client.clientType === 'web' ? '🌐' :
+                        client.clientType === 'desktop' ? '💻' : '🔌';
+
+                const logCount = client.recentRequests?.length || 0;
+                const logsHtml = client.recentRequests && client.recentRequests.length > 0
+                    ? client.recentRequests.map(req => {
+                        const time = new Date(req.timestamp).toLocaleTimeString('de-DE', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                        return `
+                            <div class="log-entry">
+                                <span class="log-time">${time}</span>
+                                <span class="log-type">${req.type}</span>
+                                <span class="log-id">${req.id || '-'}</span>
+                            </div>
+                        `;
+                    }).join('')
+                    : '<div class="no-logs">No requests yet</div>';
+
+                return `
+                    <div class="client-wrapper">
+                        <div class="client-badge">
+                            <span class="client-icon">${icon}</span>
+                            <span class="client-name">${client.name}</span>
+                            <span class="client-version">v${client.version}</span>
+                            <span class="client-logs-toggle" onclick="toggleLogs(${idx})" title="Show request logs">
+                                📋 Logs (${logCount})
+                            </span>
+                            <span class="client-close" onclick="disconnectClient('${client.id}')" title="Disconnect client">✕</span>
+                        </div>
+                        <div class="client-logs-panel" id="logs-${idx}">
+                            ${logsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleLogs(clientIdx) {
+            const panel = document.getElementById(`logs-${clientIdx}`);
+            if (panel) {
+                panel.classList.toggle('visible');
+            }
+        }
+
+        function disconnectClient(clientId) {
+            if (!confirm('Disconnect this client?')) return;
+
+            console.log('Disconnecting client:', clientId);
+            socket.emit('sendTo', 'home_controller_backend.0', 'disconnectClient', clientId, (result) => {
+                if (result && result.success) {
+                    console.log('Client disconnected successfully');
+                } else {
+                    console.error('Failed to disconnect client');
+                    alert('Failed to disconnect client');
+                }
+            });
+        }
+
+        // Listen for client state changes
+        socket.on('stateChange', (id, state) => {
+            if (id === 'home_controller_backend.0.info.connectedClients' && state) {
+                updateClientsDisplay(state.val);
+            }
+        });
     </script>
 </body>
 

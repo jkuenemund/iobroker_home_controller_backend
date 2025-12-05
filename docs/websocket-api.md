@@ -111,6 +111,22 @@ Get all configured rooms.
 
 ---
 
+### `help`
+
+Get available commands and examples.
+
+**Request:**
+```json
+{
+  "type": "help",
+  "id": "req-999"
+}
+```
+
+**Response:** [`help`](#help-response)
+
+---
+
 ## Server → Client Messages
 
 ### `registered`
@@ -191,7 +207,9 @@ Response containing all devices.
 | `min_value` | number | No | Minimum value (for numeric types) |
 | `max_value` | number | No | Maximum value (for numeric types) |
 | `unit` | string | No | Unit (e.g., `%`, `°C`) |
+| `unit` | string | No | Unit (e.g., `%`, `°C`) |
 | `inverted` | boolean | No | Whether values are inverted |
+| `value` | any | No | Current value of the state |
 
 ---
 
@@ -238,6 +256,29 @@ Response containing all rooms.
 | `state` | string | Yes | ioBroker state ID |
 | `label` | string | No | Display label |
 | `unit` | string | No | Unit |
+
+---
+
+### `help` (Response) <a id="help-response"></a>
+
+Response containing available commands.
+
+```json
+{
+  "type": "help",
+  "id": "req-999",
+  "payload": {
+    "commands": [
+      {
+        "command": "register",
+        "description": "Register a client with the server",
+        "example": { ... }
+      },
+      ...
+    ]
+  }
+}
+```
 
 ---
 

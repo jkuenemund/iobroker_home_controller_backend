@@ -60,6 +60,13 @@ export interface GetRoomsRequest extends BaseMessage {
     type: "getRooms";
 }
 
+/**
+ * Request available commands
+ */
+export interface HelpRequest extends BaseMessage {
+    type: "help";
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -102,6 +109,8 @@ export interface DeviceCapability {
     unit?: string;
     inverted?: boolean;
     stop?: string;
+    /** Current value of the state (if available) */
+    value?: any;
 }
 
 /**
@@ -140,6 +149,25 @@ export interface RoomsResponse extends BaseMessage {
     type: "rooms";
     payload: {
         rooms: Record<string, RoomConfig>;
+    };
+}
+
+/**
+ * Command definition for help response
+ */
+export interface CommandDefinition {
+    command: string;
+    description: string;
+    example: object;
+}
+
+/**
+ * Response containing available commands
+ */
+export interface HelpResponse extends BaseMessage {
+    type: "help";
+    payload: {
+        commands: CommandDefinition[];
     };
 }
 
@@ -186,12 +214,12 @@ export interface ConnectedClient {
 /**
  * All possible client → server message types
  */
-export type ClientMessage = RegisterRequest | GetDevicesRequest | GetRoomsRequest;
+export type ClientMessage = RegisterRequest | GetDevicesRequest | GetRoomsRequest | HelpRequest;
 
 /**
  * All possible server → client message types
  */
-export type ServerMessage = RegisteredResponse | DevicesResponse | RoomsResponse | ErrorMessage;
+export type ServerMessage = RegisteredResponse | DevicesResponse | RoomsResponse | HelpResponse | ErrorMessage;
 
 // =============================================================================
 // Error Codes

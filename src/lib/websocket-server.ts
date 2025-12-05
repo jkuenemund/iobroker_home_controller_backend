@@ -14,12 +14,17 @@ import type {
     ClientMessage,
     ConnectedClient,
     DeviceConfig,
-    DevicesResponse,
-    ErrorCodes,
-    ErrorMessage,
+    RegisterRequest,
     RegisteredResponse,
+    DevicesResponse,
+    GetDevicesRequest,
+    GetRoomsRequest,
     RoomConfig,
     RoomsResponse,
+    HelpRequest,
+    HelpResponse,
+    ErrorCodes,
+    ErrorMessage,
 } from "./types/websocket-types";
 
 // Re-export for convenience
@@ -40,6 +45,7 @@ interface AdapterInterface {
         wsPort: number;
     };
     getForeignStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
+    getForeignStateAsync: (id: string) => Promise<ioBroker.State | null | undefined>;
 }
 
 /**
@@ -205,14 +211,85 @@ export class HomeControllerWebSocketServer {
                 this.handleGetDevices(ws, message);
                 break;
             case "getRooms":
-                this.handleGetRooms(ws, message);
+                this.handleGetRooms(ws, message as GetRoomsRequest);
                 break;
-            default: {
-                // Handle unknown message types
-                const unknownMsg = message as BaseMessage;
-                this.sendError(ws, unknownMsg.id, "UNKNOWN_TYPE", `Unknown message type: ${unknownMsg.type}`);
-            }
+            case "help":
+                this.handleHelp(ws, message as HelpRequest);
+                break;
+            case "subscribe":
+            case "unsubscribe":
+                // Handle subscriptions (implemented but not fully utilized yet)
+                break;
+            default:
+                this.sendError(ws, message.id, "UNKNOWN_TYPE", `Unknown message type: ${message.type}`);
         }
+    }
+
+    /**
+     * Handle help request
+     */
+    private handleHelp(ws: WebSocket, message: HelpRequest): void {
+        const response: HelpResponse = {
+            type: "help",
+            id: message.id,
+            payload: {
+                commands: [
+                    {
+                        command: "register",
+                        description: "Register a client with the server",
+                        example: {
+                            type: "register",
+                            id: "req-1",
+                            payload: {
+                                clientName: "My Client",
+                                clientVersion: "1.0.0",
+                                clientType: "mobile"
+                            }
+                        }
+                    },
+                    {
+                        command: "getDevices",
+                        description: "Get all available devices",
+                        example: {
+                            type: "getDevices",
+                            id: "req-2"
+                        }
+                    },
+                    {
+                        command: "getRooms",
+                        description: "Get all available rooms",
+                        example: {
+                            type: "getRooms",
+                            id: "req-3"
+                        }
+                    },
+                    {
+                        command: "help",
+                        description: "Get available commands",
+                        example: {
+                            type: "help",
+                            id: "req-4"
+                        }
+                    }
+                ]
+            }
+        };
+
+        this.send(ws, response);
+    }
+
+    private updateTimeout: NodeJS.Timeout | null = null;
+
+    /**
+     * Trigger a throttled update for logs
+     */
+    private triggerLogUpdate(): void {
+        if (this.updateTimeout) return;
+
+        this.updateTimeout = setTimeout(() => {
+            this.updateTimeout = null;
+            this.notifyClientChange();
+        }, 2000);
     }
 
     /**
@@ -220,22 +297,22 @@ export class HomeControllerWebSocketServer {
      */
     private logRequest(ws: WebSocket, type: string, id?: string): void {
         const client = this.clients.get(ws);
-        if (!client) return;
+        if (client) {
+            client.recentRequests.unshift({
+                timestamp: new Date(),
+                type: type,
+                id: id
+            });
 
-        // Add to recent requests (keep last 10)
-        client.recentRequests.unshift({
-            timestamp: new Date(),
-            type,
-            id,
-        });
+            // Keep only last 10
+            if (client.recentRequests.length > 10) {
+                client.recentRequests.pop();
+            }
 
-        // Keep only last 10 requests
-        if (client.recentRequests.length > 10) {
-            client.recentRequests = client.recentRequests.slice(0, 10);
+            // Update state to show logs in Admin UI
+            // Use throttled update to avoid flooding ioBroker with state changes
+            this.triggerLogUpdate();
         }
-
-        // Notify about client change to update UI
-        this.notifyClientChange();
     }
 
     /**
@@ -337,6 +414,7 @@ export class HomeControllerWebSocketServer {
         const states = await this.adapter.getForeignStatesAsync(pattern);
         const devices: Record<string, DeviceConfig> = {};
 
+        // Parse configs first
         for (const [id, state] of Object.entries(states)) {
             if (!state?.val) continue;
 
@@ -348,6 +426,45 @@ export class HomeControllerWebSocketServer {
             } catch {
                 this.adapter.log.warn(`Failed to parse device config for ${deviceId}`);
             }
+        }
+
+        // Collect all state IDs to fetch
+        const stateIds = new Set<string>();
+        for (const device of Object.values(devices)) {
+            if (device.capabilities) {
+                for (const cap of device.capabilities) {
+                    if (cap.state) {
+                        stateIds.add(cap.state);
+                    }
+                }
+            }
+        }
+
+        // Fetch current values for all states
+        if (stateIds.size > 0) {
+            const idArray = Array.from(stateIds);
+
+            // Fetch in parallel
+            await Promise.all(idArray.map(async (oid) => {
+                try {
+                    const state = await this.adapter.getForeignStateAsync(oid);
+                    if (state && state.val !== undefined && state.val !== null) {
+                        // Update matching capabilities
+                        // Note: A state ID might be used by multiple devices/capabilities
+                        for (const device of Object.values(devices)) {
+                            if (device.capabilities) {
+                                for (const cap of device.capabilities) {
+                                    if (cap.state === oid) {
+                                        cap.value = state.val;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    this.adapter.log.warn(`Failed to fetch state ${oid}: ${(error as Error).message}`);
+                }
+            }));
         }
 
         return devices;

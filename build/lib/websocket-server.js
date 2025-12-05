@@ -159,27 +159,94 @@ class HomeControllerWebSocketServer {
       case "getRooms":
         this.handleGetRooms(ws, message);
         break;
-      default: {
-        const unknownMsg = message;
-        this.sendError(ws, unknownMsg.id, "UNKNOWN_TYPE", `Unknown message type: ${unknownMsg.type}`);
-      }
+      case "help":
+        this.handleHelp(ws, message);
+        break;
+      case "subscribe":
+      case "unsubscribe":
+        break;
+      default:
+        this.sendError(ws, message.id, "UNKNOWN_TYPE", `Unknown message type: ${message.type}`);
     }
+  }
+  /**
+   * Handle help request
+   */
+  handleHelp(ws, message) {
+    const response = {
+      type: "help",
+      id: message.id,
+      payload: {
+        commands: [
+          {
+            command: "register",
+            description: "Register a client with the server",
+            example: {
+              type: "register",
+              id: "req-1",
+              payload: {
+                clientName: "My Client",
+                clientVersion: "1.0.0",
+                clientType: "mobile"
+              }
+            }
+          },
+          {
+            command: "getDevices",
+            description: "Get all available devices",
+            example: {
+              type: "getDevices",
+              id: "req-2"
+            }
+          },
+          {
+            command: "getRooms",
+            description: "Get all available rooms",
+            example: {
+              type: "getRooms",
+              id: "req-3"
+            }
+          },
+          {
+            command: "help",
+            description: "Get available commands",
+            example: {
+              type: "help",
+              id: "req-4"
+            }
+          }
+        ]
+      }
+    };
+    this.send(ws, response);
+  }
+  updateTimeout = null;
+  /**
+   * Trigger a throttled update for logs
+   */
+  triggerLogUpdate() {
+    if (this.updateTimeout) return;
+    this.updateTimeout = setTimeout(() => {
+      this.updateTimeout = null;
+      this.notifyClientChange();
+    }, 2e3);
   }
   /**
    * Log a request from a client
    */
   logRequest(ws, type, id) {
     const client = this.clients.get(ws);
-    if (!client) return;
-    client.recentRequests.unshift({
-      timestamp: /* @__PURE__ */ new Date(),
-      type,
-      id
-    });
-    if (client.recentRequests.length > 10) {
-      client.recentRequests = client.recentRequests.slice(0, 10);
+    if (client) {
+      client.recentRequests.unshift({
+        timestamp: /* @__PURE__ */ new Date(),
+        type,
+        id
+      });
+      if (client.recentRequests.length > 10) {
+        client.recentRequests.pop();
+      }
+      this.triggerLogUpdate();
     }
-    this.notifyClientChange();
   }
   /**
    * Handle client registration
@@ -272,6 +339,37 @@ class HomeControllerWebSocketServer {
       } catch {
         this.adapter.log.warn(`Failed to parse device config for ${deviceId}`);
       }
+    }
+    const stateIds = /* @__PURE__ */ new Set();
+    for (const device of Object.values(devices)) {
+      if (device.capabilities) {
+        for (const cap of device.capabilities) {
+          if (cap.state) {
+            stateIds.add(cap.state);
+          }
+        }
+      }
+    }
+    if (stateIds.size > 0) {
+      const idArray = Array.from(stateIds);
+      await Promise.all(idArray.map(async (oid) => {
+        try {
+          const state = await this.adapter.getForeignStateAsync(oid);
+          if (state && state.val !== void 0 && state.val !== null) {
+            for (const device of Object.values(devices)) {
+              if (device.capabilities) {
+                for (const cap of device.capabilities) {
+                  if (cap.state === oid) {
+                    cap.value = state.val;
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          this.adapter.log.warn(`Failed to fetch state ${oid}: ${error.message}`);
+        }
+      }));
     }
     return devices;
   }

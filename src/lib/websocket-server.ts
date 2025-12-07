@@ -23,12 +23,13 @@ import type {
     RoomsResponse,
     HelpRequest,
     HelpResponse,
+    StateChangeMessage,
     ErrorCodes,
     ErrorMessage,
-} from "./types/websocket-types";
+} from "./websocket/types";
 
 // Re-export for convenience
-export { ErrorCodes } from "./types/websocket-types";
+export { ErrorCodes } from "./websocket/types";
 
 /**
  * Adapter interface - subset of ioBroker adapter methods we need
@@ -46,6 +47,7 @@ interface AdapterInterface {
     };
     getForeignStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
     getForeignStateAsync: (id: string) => Promise<ioBroker.State | null | undefined>;
+    subscribeForeignStates: (pattern: string) => void;
 }
 
 /**
@@ -57,6 +59,9 @@ export class HomeControllerWebSocketServer {
     private adapter: AdapterInterface;
     private serverVersion = "0.0.1";
     private onClientChangeCallback: ((clients: ConnectedClient[]) => void) | null = null;
+
+    // Map stateId -> list of capabilities that use it
+    private stateMap: Map<string, Array<{ deviceId: string; capability: string }>> = new Map();
 
     constructor(adapter: AdapterInterface) {
         this.adapter = adapter;
@@ -82,19 +87,92 @@ export class HomeControllerWebSocketServer {
      * Start the WebSocket server
      */
     public start(): void {
-        const port = this.adapter.config.wsPort || 8082;
-
-        this.wss = new WSServer({ port });
+        this.wss = new WSServer({ port: this.adapter.config.wsPort });
 
         this.wss.on("connection", (ws: WebSocket) => {
             this.handleConnection(ws);
         });
 
+        // Initial subscription to all known states
+        this.subscribeToAllStates();
+
         this.wss.on("error", (error: Error) => {
             this.adapter.log.error(`WebSocket server error: ${error.message}`);
         });
 
-        this.adapter.log.info(`WebSocket server started on port ${port}`);
+        this.adapter.log.info(`WebSocket server started on port ${this.adapter.config.wsPort}`);
+    }
+
+    /**
+     * Subscribe to all states defined in devices
+     */
+    public async subscribeToAllStates(): Promise<void> {
+        try {
+            // Re-fetch devices to get fresh config
+            const devices = await this.fetchDevices();
+
+            this.stateMap.clear();
+            const statesToSubscribe = new Set<string>();
+
+            for (const [deviceId, config] of Object.entries(devices)) {
+                if (config.capabilities) {
+                    for (const cap of config.capabilities) {
+                        if (cap.state) {
+                            statesToSubscribe.add(cap.state);
+
+                            // Add to map
+                            const existing = this.stateMap.get(cap.state) || [];
+                            existing.push({ deviceId, capability: cap.type });
+                            this.stateMap.set(cap.state, existing);
+                        }
+                    }
+                }
+            }
+
+            // Subscribe to each state
+            for (const oid of statesToSubscribe) {
+                this.adapter.subscribeForeignStates(oid);
+            }
+
+            this.adapter.log.info(`Subscribed to ${statesToSubscribe.size} states for real-time updates`);
+
+        } catch (error) {
+            this.adapter.log.error(`Failed to subscribe to states: ${(error as Error).message}`);
+        }
+    }
+
+    /**
+     * Handle state change from adapter
+     */
+    public handleStateChange(id: string, state: ioBroker.State): void {
+        const affected = this.stateMap.get(id);
+        if (affected && affected.length > 0) {
+            for (const item of affected) {
+                this.broadcastStateChange(item.deviceId, item.capability, id, state.val, state.ts);
+            }
+        }
+    }
+
+    /**
+     * Broadcast state change to all connected clients
+     */
+    private broadcastStateChange(deviceId: string, capability: string, stateId: string, value: any, ts: number): void {
+        const message: StateChangeMessage = {
+            type: "stateChange",
+            id: undefined, // Notification has no request ID
+            payload: {
+                deviceId,
+                capability,
+                state: stateId,
+                value,
+                timestamp: new Date(ts).toISOString()
+            }
+        };
+
+        // Send to all connected clients
+        for (const ws of this.clients.keys()) {
+            this.send(ws, message);
+        }
     }
 
     /**

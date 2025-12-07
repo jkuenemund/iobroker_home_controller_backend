@@ -18,19 +18,21 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var websocket_server_exports = {};
 __export(websocket_server_exports, {
-  ErrorCodes: () => import_websocket_types.ErrorCodes,
+  ErrorCodes: () => import_types.ErrorCodes,
   HomeControllerWebSocketServer: () => HomeControllerWebSocketServer
 });
 module.exports = __toCommonJS(websocket_server_exports);
 var import_ws = require("ws");
 var import_uuid = require("uuid");
-var import_websocket_types = require("./types/websocket-types");
+var import_types = require("./websocket/types");
 class HomeControllerWebSocketServer {
   wss = null;
   clients = /* @__PURE__ */ new Map();
   adapter;
   serverVersion = "0.0.1";
   onClientChangeCallback = null;
+  // Map stateId -> list of capabilities that use it
+  stateMap = /* @__PURE__ */ new Map();
   constructor(adapter) {
     this.adapter = adapter;
   }
@@ -52,15 +54,74 @@ class HomeControllerWebSocketServer {
    * Start the WebSocket server
    */
   start() {
-    const port = this.adapter.config.wsPort || 8082;
-    this.wss = new import_ws.WebSocketServer({ port });
+    this.wss = new import_ws.WebSocketServer({ port: this.adapter.config.wsPort });
     this.wss.on("connection", (ws) => {
       this.handleConnection(ws);
     });
+    this.subscribeToAllStates();
     this.wss.on("error", (error) => {
       this.adapter.log.error(`WebSocket server error: ${error.message}`);
     });
-    this.adapter.log.info(`WebSocket server started on port ${port}`);
+    this.adapter.log.info(`WebSocket server started on port ${this.adapter.config.wsPort}`);
+  }
+  /**
+   * Subscribe to all states defined in devices
+   */
+  async subscribeToAllStates() {
+    try {
+      const devices = await this.fetchDevices();
+      this.stateMap.clear();
+      const statesToSubscribe = /* @__PURE__ */ new Set();
+      for (const [deviceId, config] of Object.entries(devices)) {
+        if (config.capabilities) {
+          for (const cap of config.capabilities) {
+            if (cap.state) {
+              statesToSubscribe.add(cap.state);
+              const existing = this.stateMap.get(cap.state) || [];
+              existing.push({ deviceId, capability: cap.type });
+              this.stateMap.set(cap.state, existing);
+            }
+          }
+        }
+      }
+      for (const oid of statesToSubscribe) {
+        this.adapter.subscribeForeignStates(oid);
+      }
+      this.adapter.log.info(`Subscribed to ${statesToSubscribe.size} states for real-time updates`);
+    } catch (error) {
+      this.adapter.log.error(`Failed to subscribe to states: ${error.message}`);
+    }
+  }
+  /**
+   * Handle state change from adapter
+   */
+  handleStateChange(id, state) {
+    const affected = this.stateMap.get(id);
+    if (affected && affected.length > 0) {
+      for (const item of affected) {
+        this.broadcastStateChange(item.deviceId, item.capability, id, state.val, state.ts);
+      }
+    }
+  }
+  /**
+   * Broadcast state change to all connected clients
+   */
+  broadcastStateChange(deviceId, capability, stateId, value, ts) {
+    const message = {
+      type: "stateChange",
+      id: void 0,
+      // Notification has no request ID
+      payload: {
+        deviceId,
+        capability,
+        state: stateId,
+        value,
+        timestamp: new Date(ts).toISOString()
+      }
+    };
+    for (const ws of this.clients.keys()) {
+      this.send(ws, message);
+    }
   }
   /**
    * Stop the WebSocket server

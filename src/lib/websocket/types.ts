@@ -171,6 +171,20 @@ export interface HelpResponse extends BaseMessage {
     };
 }
 
+/**
+ * State change notification
+ */
+export interface StateChangeMessage extends BaseMessage {
+    type: "stateChange";
+    payload: {
+        deviceId: string;
+        capability: string;
+        state: string;
+        value: any;
+        timestamp: string;
+    };
+}
+
 // =============================================================================
 // Client State Management
 // =============================================================================
@@ -219,7 +233,7 @@ export type ClientMessage = RegisterRequest | GetDevicesRequest | GetRoomsReques
 /**
  * All possible server → client message types
  */
-export type ServerMessage = RegisteredResponse | DevicesResponse | RoomsResponse | HelpResponse | ErrorMessage;
+export type ServerMessage = RegisteredResponse | DevicesResponse | RoomsResponse | HelpResponse | StateChangeMessage | ErrorMessage;
 
 // =============================================================================
 // Error Codes

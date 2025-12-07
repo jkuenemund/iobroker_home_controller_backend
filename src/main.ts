@@ -99,7 +99,7 @@ class HomeControllerBackend extends utils.Adapter {
 	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
 		if (state) {
 			this.log.debug(`State ${id} changed: ${state.val} (ack = ${state.ack})`);
-			// TODO: In Part 2, broadcast state changes to subscribed clients
+			this.wsServer?.handleStateChange(id, state);
 		} else {
 			this.log.debug(`State ${id} deleted`);
 		}

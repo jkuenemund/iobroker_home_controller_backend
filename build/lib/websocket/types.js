@@ -16,11 +16,11 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-var websocket_types_exports = {};
-__export(websocket_types_exports, {
+var types_exports = {};
+__export(types_exports, {
   ErrorCodes: () => ErrorCodes
 });
-module.exports = __toCommonJS(websocket_types_exports);
+module.exports = __toCommonJS(types_exports);
 const ErrorCodes = {
   NOT_REGISTERED: "NOT_REGISTERED",
   INVALID_MESSAGE: "INVALID_MESSAGE",
@@ -31,4 +31,4 @@ const ErrorCodes = {
 0 && (module.exports = {
   ErrorCodes
 });
-//# sourceMappingURL=websocket-types.js.map
+//# sourceMappingURL=types.js.map

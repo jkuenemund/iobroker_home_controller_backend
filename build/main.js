@@ -97,8 +97,10 @@ class HomeControllerBackend extends utils.Adapter {
    * Is called if a subscribed state changes
    */
   onStateChange(id, state) {
+    var _a;
     if (state) {
       this.log.debug(`State ${id} changed: ${state.val} (ack = ${state.ack})`);
+      (_a = this.wsServer) == null ? void 0 : _a.handleStateChange(id, state);
     } else {
       this.log.debug(`State ${id} deleted`);
     }

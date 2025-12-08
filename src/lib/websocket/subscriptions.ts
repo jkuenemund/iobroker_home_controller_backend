@@ -16,9 +16,17 @@ export interface SubscriptionRegistryDeps {
 export class SubscriptionRegistry {
 	private readonly deps: SubscriptionRegistryDeps;
 	private readonly filters: Map<WebSocket, SubscriptionFilters> = new Map();
+	private readonly deviceRooms: Map<string, string> = new Map();
 
 	constructor(deps: SubscriptionRegistryDeps) {
 		this.deps = deps;
+	}
+
+	public setDeviceRooms(map: Map<string, string>): void {
+		this.deviceRooms.clear();
+		for (const [k, v] of map.entries()) {
+			this.deviceRooms.set(k, v);
+		}
 	}
 
 	public setDefault(ws: WebSocket): void {
@@ -76,10 +84,10 @@ export class SubscriptionRegistry {
 			return false;
 		}
 		if (rooms && rooms.length > 0) {
-			const client = clients.get(ws);
-			// Room filtering requires device->room mapping (not available here).
-			// For now, if rooms filter is set, we do not block; implement when room map is available.
-			void client;
+			const room = this.deviceRooms.get(payload.deviceId);
+			if (!room || !rooms.includes(room)) {
+				return false;
+			}
 		}
 		return true;
 	}

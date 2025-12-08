@@ -260,6 +260,21 @@ export interface StateChangeMessage extends BaseMessage {
 	};
 }
 
+export interface StateChangeBatchMessage extends BaseMessage {
+	type: "stateChangeBatch";
+	payload: {
+		events: Array<StateChangeMessage["payload"]>;
+	};
+}
+
+export interface ThrottleHintMessage extends BaseMessage {
+	type: "throttleHint";
+	payload: {
+		reason: "rate_limit" | "batching";
+		retryAfterMs?: number;
+	};
+}
+
 // =============================================================================
 // Client State Management
 // =============================================================================
@@ -324,6 +339,8 @@ export type ServerMessage =
 	| InitialSnapshotResponse
 	| HelpResponse
 	| StateChangeMessage
+	| StateChangeBatchMessage
+	| ThrottleHintMessage
 	| ErrorMessage;
 
 // =============================================================================

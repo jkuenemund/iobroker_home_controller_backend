@@ -287,6 +287,7 @@ class HomeControllerWebSocketServer {
       clients: this.clients,
       snapshotService: this.snapshotService,
       nextSeq: () => this.nextSeq(),
+      getSeq: () => this.seqCounter,
       serverVersion: this.serverVersion,
       protocolVersion: this.protocolVersion,
       schemaVersion: this.schemaVersion,

@@ -33,7 +33,11 @@ var import_types = require("./types");
 function handleRegister(ctx, ws, message) {
   var _a, _b;
   const regMsg = message;
-  const { clientName, clientVersion, clientType } = regMsg.payload;
+  const { clientName, clientVersion, clientType, lastSeqSeen } = regMsg.payload;
+  const currentSeq = ctx.getSeq();
+  if (lastSeqSeen !== void 0 && lastSeqSeen < currentSeq) {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.RESYNC_REQUIRED, "Snapshot required; lastSeqSeen stale");
+  }
   const clientId = (0, import_uuid.v4)();
   const client = {
     id: clientId,
@@ -244,14 +248,23 @@ function applySubscriptions(ctx, event) {
   return deliveries;
 }
 async function handleSetState(ctx, ws, message) {
-  var _a;
+  var _a, _b;
   const client = ctx.clients.get(ws);
   if (!(client == null ? void 0 : client.isRegistered)) {
     ctx.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
     return;
   }
   try {
-    await ctx.adapter.setForeignStateAsync(message.payload.state, message.payload.value, (_a = message.payload.ack) != null ? _a : false);
+    const validation = await ctx.snapshotService.validateSetState(
+      message.payload.deviceId,
+      message.payload.capability,
+      message.payload.state
+    );
+    if (!validation.ok) {
+      ctx.sendError(ws, message.id, import_types.ErrorCodes.PERMISSION_DENIED, (_a = validation.reason) != null ? _a : "Not allowed");
+      return;
+    }
+    await ctx.adapter.setForeignStateAsync(message.payload.state, message.payload.value, (_b = message.payload.ack) != null ? _b : false);
     ctx.send(ws, { type: "ack", id: message.id });
   } catch (error) {
     ctx.sendError(

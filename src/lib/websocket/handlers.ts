@@ -37,6 +37,7 @@ export interface HandlerContext {
 	clients: Map<WebSocket, ConnectedClient>;
 	snapshotService: SnapshotService;
 	nextSeq: () => number;
+	getSeq: () => number;
 	serverVersion: string;
 	protocolVersion: string;
 	schemaVersion: string;
@@ -48,7 +49,11 @@ export interface HandlerContext {
 
 export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: BaseMessage): void {
 	const regMsg = message as BaseMessage & { payload: any };
-	const { clientName, clientVersion, clientType } = regMsg.payload;
+	const { clientName, clientVersion, clientType, lastSeqSeen } = regMsg.payload;
+	const currentSeq = ctx.getSeq();
+	if (lastSeqSeen !== undefined && lastSeqSeen < currentSeq) {
+		ctx.sendError(ws, message.id, ErrorCodes.RESYNC_REQUIRED, "Snapshot required; lastSeqSeen stale");
+	}
 	const clientId = uuidv4();
 
 	const client: ConnectedClient = {
@@ -298,6 +303,16 @@ export async function handleSetState(ctx: HandlerContext, ws: WebSocket, message
 	}
 
 	try {
+		const validation = await ctx.snapshotService.validateSetState(
+			message.payload.deviceId,
+			message.payload.capability,
+			message.payload.state,
+		);
+		if (!validation.ok) {
+			ctx.sendError(ws, message.id, ErrorCodes.PERMISSION_DENIED, validation.reason ?? "Not allowed");
+			return;
+		}
+
 		await ctx.adapter.setForeignStateAsync(message.payload.state, message.payload.value, message.payload.ack ?? false);
 		// respond with ack message (could be a stateChange later)
 		ctx.send(ws, { type: "ack", id: message.id });

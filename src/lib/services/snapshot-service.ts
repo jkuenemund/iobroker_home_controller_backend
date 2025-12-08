@@ -42,6 +42,23 @@ export class SnapshotService {
 		return this.fetchRooms();
 	}
 
+	public async validateSetState(
+		deviceId: string,
+		capability: string,
+		stateId: string,
+	): Promise<{ ok: boolean; reason?: string }> {
+		const devices = await this.fetchDevices();
+		const device = devices[deviceId];
+		if (!device) {
+			return { ok: false, reason: "UNKNOWN_DEVICE" };
+		}
+		const cap = device.capabilities?.find(c => c.type === capability && c.state === stateId);
+		if (!cap) {
+			return { ok: false, reason: "UNKNOWN_STATE_OR_CAPABILITY" };
+		}
+		return { ok: true };
+	}
+
 	/**
 	 * Fetch all devices from ioBroker states
 	 */

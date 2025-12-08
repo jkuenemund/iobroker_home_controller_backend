@@ -21,12 +21,17 @@ __export(state_change_exports, {
   StateChangeManager: () => StateChangeManager
 });
 module.exports = __toCommonJS(state_change_exports);
-var import_handlers = require("./handlers");
 class StateChangeManager {
   deps;
   stateMap = /* @__PURE__ */ new Map();
   subscriptions;
+  deviceRooms = /* @__PURE__ */ new Map();
   ctxForSubs;
+  queue = [];
+  flushTimer = null;
+  batchIntervalMs = 200;
+  eventsThisSecond = 0;
+  windowStart = Date.now();
   constructor(deps, subscriptions) {
     this.deps = deps;
     this.subscriptions = subscriptions;
@@ -39,9 +44,13 @@ class StateChangeManager {
     try {
       const devices = await this.deps.snapshotService.getDevices();
       this.stateMap.clear();
+      this.deviceRooms.clear();
       const statesToSubscribe = /* @__PURE__ */ new Set();
       for (const [deviceId, config] of Object.entries(devices)) {
         if (config.capabilities) {
+          if (config.room) {
+            this.deviceRooms.set(deviceId, config.room);
+          }
           for (const cap of config.capabilities) {
             if (cap.state) {
               statesToSubscribe.add(cap.state);
@@ -55,6 +64,7 @@ class StateChangeManager {
       for (const oid of statesToSubscribe) {
         this.deps.adapter.subscribeForeignStates(oid);
       }
+      this.subscriptions.setDeviceRooms(this.deviceRooms);
       this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} states for real-time updates`);
     } catch (error) {
       this.deps.adapter.log.error(`Failed to subscribe to states: ${error.message}`);
@@ -64,25 +74,75 @@ class StateChangeManager {
     const affected = this.stateMap.get(id);
     if (affected && affected.length > 0) {
       for (const item of affected) {
-        this.broadcastStateChange(item.deviceId, item.capability, id, state.val, state.ts);
+        this.enqueueStateChange(item.deviceId, item.capability, id, state.val, state.ts);
       }
     }
   }
-  broadcastStateChange(deviceId, capability, stateId, value, ts) {
-    const message = {
-      type: "stateChange",
-      id: void 0,
+  enqueueStateChange(deviceId, capability, stateId, value, ts) {
+    this.countEvent();
+    this.queue.push({
+      deviceId,
+      capability,
+      state: stateId,
+      value,
+      timestamp: new Date(ts).toISOString()
+    });
+    if (!this.flushTimer) {
+      this.flushTimer = setTimeout(() => this.flushQueue(), this.batchIntervalMs);
+    }
+  }
+  flushQueue() {
+    this.flushTimer = null;
+    if (this.queue.length === 0) {
+      return;
+    }
+    for (const ws of this.deps.clients.keys()) {
+      const clientEvents = [];
+      for (const payload of this.queue) {
+        const message = { type: "stateChange", payload };
+        if (this.subscriptions.shouldDeliver(ws, message, this.deps.clients)) {
+          clientEvents.push(payload);
+        }
+      }
+      if (clientEvents.length === 0) {
+        continue;
+      }
+      if (clientEvents.length === 1) {
+        const single = { type: "stateChange", payload: clientEvents[0] };
+        this.deps.send(ws, single);
+      } else {
+        const batch = {
+          type: "stateChangeBatch",
+          payload: { events: clientEvents }
+        };
+        this.deps.send(ws, batch);
+      }
+    }
+    this.queue.length = 0;
+  }
+  countEvent() {
+    var _a;
+    const now = Date.now();
+    if (now - this.windowStart >= 1e3) {
+      this.windowStart = now;
+      this.eventsThisSecond = 0;
+    }
+    this.eventsThisSecond += 1;
+    const limit = (_a = this.deps.adapter.config.maxEventsPerSecond) != null ? _a : 50;
+    if (this.eventsThisSecond > limit) {
+      this.sendThrottleHint();
+    }
+  }
+  sendThrottleHint() {
+    const hint = {
+      type: "throttleHint",
       payload: {
-        deviceId,
-        capability,
-        state: stateId,
-        value,
-        timestamp: new Date(ts).toISOString()
+        reason: "rate_limit",
+        retryAfterMs: this.batchIntervalMs
       }
     };
-    const deliveries = (0, import_handlers.applySubscriptions)(this.ctxForSubs, message);
-    for (const [ws, msg] of deliveries) {
-      this.deps.send(ws, msg);
+    for (const ws of this.deps.clients.keys()) {
+      this.deps.send(ws, hint);
     }
   }
 }

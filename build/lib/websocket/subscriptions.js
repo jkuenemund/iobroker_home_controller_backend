@@ -24,8 +24,15 @@ module.exports = __toCommonJS(subscriptions_exports);
 class SubscriptionRegistry {
   deps;
   filters = /* @__PURE__ */ new Map();
+  deviceRooms = /* @__PURE__ */ new Map();
   constructor(deps) {
     this.deps = deps;
+  }
+  setDeviceRooms(map) {
+    this.deviceRooms.clear();
+    for (const [k, v] of map.entries()) {
+      this.deviceRooms.set(k, v);
+    }
   }
   setDefault(ws) {
     if (this.deps.defaultSubscription === "all") {
@@ -76,8 +83,10 @@ class SubscriptionRegistry {
       return false;
     }
     if (rooms && rooms.length > 0) {
-      const client = clients.get(ws);
-      void client;
+      const room = this.deviceRooms.get(payload.deviceId);
+      if (!room || !rooms.includes(room)) {
+        return false;
+      }
     }
     return true;
   }

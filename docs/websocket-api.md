@@ -177,6 +177,28 @@ Alle Nachrichten folgen diesem Schema:
 }
 ```
 - `help`
+- `ack` (Antwort auf `setState`)
+
+### Batch & Backpressure
+- `stateChange` (Einzeldelta, gefiltert per Subscription)
+- `stateChangeBatch` (Array von Deltas, bei Bursts)
+- `throttleHint` (Hinweis auf Rate-Limit/Batching, z.B. `{ "type": "throttleHint", "payload": { "reason": "rate_limit", "retryAfterMs": 200 } }`)
+
+### Room-Filter
+- Rooms-Filter funktionieren, wenn Device → Room im Snapshot vorhanden ist. Server mappt deviceId → room und filtert entsprechend.
+
+### SetState Validation
+- `setState` wird gegen bekannte Devices/Capabilities/States geprüft; bei unbekannt -> `PERMISSION_DENIED`.
+- Payload-Validation via Ajv; ungültige Payload -> `INVALID_PAYLOAD`.
+
+### Auth & Transport
+- Auth-Modus: aktuell Basic Auth (sofern konfiguriert) oder none. Session-Cookie kann alternativ genutzt werden, aber Standard ist Basic oder offen.
+- TLS: Self-signed erlaubt; bei Zertifikatsfehler Close-Code 4006 vorgesehen. Standard-Port 8082 (ws), wss bei TLS.
+- Heartbeat: Ping/Pong ~28s/10s Timeout, Close 4008 bei Idle.
+
+### Re-Sync
+- Client kann `lastSeqSeen` beim Register senden. Ist dieser kleiner als der aktuelle seq, schickt der Server `RESYNC_REQUIRED`; Client soll dann einen Snapshot holen.
+- `help`
 
 ## 8. Server → Client Nachrichten
 - `registered`

@@ -12,6 +12,12 @@ export interface BaseMessage {
     type: string;
     /** Optional request ID for request/response matching */
     id?: string;
+    /** Sequence number (server-assigned on outbound messages) */
+    seq?: number;
+    /** Timestamp ISO-String (server-assigned on outbound messages) */
+    ts?: string;
+    /** Schema/Envelope version */
+    version?: string;
 }
 
 /**
@@ -20,6 +26,7 @@ export interface BaseMessage {
 export interface ErrorInfo {
     code: string;
     message: string;
+    details?: Record<string, unknown>;
 }
 
 /**
@@ -43,6 +50,8 @@ export interface RegisterRequest extends BaseMessage {
         clientName: string;
         clientVersion: string;
         clientType: "mobile" | "web" | "desktop" | "other";
+        lastSeqSeen?: number;
+        acceptCompression?: boolean;
     };
 }
 
@@ -67,6 +76,13 @@ export interface HelpRequest extends BaseMessage {
     type: "help";
 }
 
+/**
+ * Request full snapshot (devices + rooms)
+ */
+export interface GetSnapshotRequest extends BaseMessage {
+    type: "getSnapshot";
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -79,7 +95,16 @@ export interface RegisteredResponse extends BaseMessage {
     payload: {
         clientId: string;
         serverVersion: string;
+        protocolVersion: string;
+        schemaVersion: string;
         capabilities: string[];
+        limits: {
+            maxMsgBytes: number;
+            maxEventsPerSecond: number;
+            supportsBatch: boolean;
+            supportsCompression: boolean;
+            defaultSubscription: "all" | "none";
+        };
     };
 }
 
@@ -104,13 +129,13 @@ export interface DeviceCapability {
     type: string;
     state: string;
     description?: string;
-    min_value?: number;
-    max_value?: number;
+    min?: number;
+    max?: number;
     unit?: string;
     inverted?: boolean;
     stop?: string;
     /** Current value of the state (if available) */
-    value?: any;
+    value?: unknown;
 }
 
 /**
@@ -140,6 +165,8 @@ export interface RoomMetric {
     state: string;
     label?: string;
     unit?: string;
+    value?: unknown;
+    ts?: string;
 }
 
 /**
@@ -150,6 +177,22 @@ export interface RoomsResponse extends BaseMessage {
     payload: {
         rooms: Record<string, RoomConfig>;
     };
+}
+
+export interface SnapshotPayload {
+    devices: Record<string, DeviceConfig>;
+    rooms: Record<string, RoomConfig>;
+    seq: number;
+}
+
+export interface SnapshotResponse extends BaseMessage {
+    type: "snapshot";
+    payload: SnapshotPayload;
+}
+
+export interface InitialSnapshotResponse extends BaseMessage {
+    type: "initialSnapshot";
+    payload: SnapshotPayload;
 }
 
 /**
@@ -180,8 +223,9 @@ export interface StateChangeMessage extends BaseMessage {
         deviceId: string;
         capability: string;
         state: string;
-        value: any;
+        value: unknown;
         timestamp: string;
+        quality?: string;
     };
 }
 
@@ -228,12 +272,20 @@ export interface ConnectedClient {
 /**
  * All possible client → server message types
  */
-export type ClientMessage = RegisterRequest | GetDevicesRequest | GetRoomsRequest | HelpRequest;
+export type ClientMessage = RegisterRequest | GetDevicesRequest | GetRoomsRequest | GetSnapshotRequest | HelpRequest;
 
 /**
  * All possible server → client message types
  */
-export type ServerMessage = RegisteredResponse | DevicesResponse | RoomsResponse | HelpResponse | StateChangeMessage | ErrorMessage;
+export type ServerMessage =
+    | RegisteredResponse
+    | DevicesResponse
+    | RoomsResponse
+    | SnapshotResponse
+    | InitialSnapshotResponse
+    | HelpResponse
+    | StateChangeMessage
+    | ErrorMessage;
 
 // =============================================================================
 // Error Codes
@@ -244,6 +296,14 @@ export const ErrorCodes = {
     INVALID_MESSAGE: "INVALID_MESSAGE",
     UNKNOWN_TYPE: "UNKNOWN_TYPE",
     INTERNAL_ERROR: "INTERNAL_ERROR",
+    AUTH_FAILED: "AUTH_FAILED",
+    TOKEN_EXPIRED: "TOKEN_EXPIRED",
+    PERMISSION_DENIED: "PERMISSION_DENIED",
+    UNSUPPORTED_VERSION: "UNSUPPORTED_VERSION",
+    INVALID_PAYLOAD: "INVALID_PAYLOAD",
+    RATE_LIMIT: "RATE_LIMIT",
+    CERT_ERROR: "CERT_ERROR",
+    RESYNC_REQUIRED: "RESYNC_REQUIRED",
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

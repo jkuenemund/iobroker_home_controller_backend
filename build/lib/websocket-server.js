@@ -18,23 +18,34 @@ var __copyProps = (to, from, except, desc) => {
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var websocket_server_exports = {};
 __export(websocket_server_exports, {
-  ErrorCodes: () => import_types.ErrorCodes,
+  ErrorCodes: () => import_types2.ErrorCodes,
   HomeControllerWebSocketServer: () => HomeControllerWebSocketServer
 });
 module.exports = __toCommonJS(websocket_server_exports);
 var import_ws = require("ws");
 var import_uuid = require("uuid");
+var import_snapshot_service = require("./services/snapshot-service");
 var import_types = require("./websocket/types");
+var import_types2 = require("./websocket/types");
 class HomeControllerWebSocketServer {
   wss = null;
   clients = /* @__PURE__ */ new Map();
   adapter;
   serverVersion = "0.0.1";
+  protocolVersion = "1.0";
+  schemaVersion = "1.0";
+  seqCounter = 0;
+  snapshotService;
+  heartbeatInterval = null;
+  pingIntervalMs = 28e3;
+  pingTimeoutMs = 1e4;
+  socketMeta = /* @__PURE__ */ new WeakMap();
   onClientChangeCallback = null;
   // Map stateId -> list of capabilities that use it
   stateMap = /* @__PURE__ */ new Map();
   constructor(adapter) {
     this.adapter = adapter;
+    this.snapshotService = new import_snapshot_service.SnapshotService(adapter);
   }
   /**
    * Set callback for when clients connect/disconnect
@@ -54,14 +65,25 @@ class HomeControllerWebSocketServer {
    * Start the WebSocket server
    */
   start() {
-    this.wss = new import_ws.WebSocketServer({ port: this.adapter.config.wsPort });
-    this.wss.on("connection", (ws) => {
-      this.handleConnection(ws);
+    this.wss = new import_ws.WebSocketServer({
+      port: this.adapter.config.wsPort,
+      perMessageDeflate: true
+    });
+    this.wss.on("connection", (ws, req) => {
+      var _a, _b, _c;
+      const auth = this.authenticate(req);
+      if (!auth.ok) {
+        this.adapter.log.warn(`Rejected connection: ${(_a = auth.reason) != null ? _a : "auth failed"}`);
+        ws.close((_b = auth.closeCode) != null ? _b : 4001, (_c = auth.reason) != null ? _c : "AUTH_FAILED");
+        return;
+      }
+      this.handleConnection(ws, req);
     });
     this.subscribeToAllStates();
     this.wss.on("error", (error) => {
       this.adapter.log.error(`WebSocket server error: ${error.message}`);
     });
+    this.heartbeatInterval = setInterval(() => this.checkHeartbeats(), this.pingIntervalMs);
     this.adapter.log.info(`WebSocket server started on port ${this.adapter.config.wsPort}`);
   }
   /**
@@ -69,7 +91,7 @@ class HomeControllerWebSocketServer {
    */
   async subscribeToAllStates() {
     try {
-      const devices = await this.fetchDevices();
+      const devices = await this.snapshotService.getDevices();
       this.stateMap.clear();
       const statesToSubscribe = /* @__PURE__ */ new Set();
       for (const [deviceId, config] of Object.entries(devices)) {
@@ -128,6 +150,10 @@ class HomeControllerWebSocketServer {
    */
   stop() {
     if (this.wss) {
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
       for (const ws of this.clients.keys()) {
         ws.close(1001, "Server shutting down");
       }
@@ -165,8 +191,15 @@ class HomeControllerWebSocketServer {
   /**
    * Handle new WebSocket connection
    */
-  handleConnection(ws) {
+  handleConnection(ws, _req) {
     this.adapter.log.debug("New WebSocket connection");
+    this.socketMeta.set(ws, { isAlive: true });
+    ws.on("pong", () => {
+      const meta = this.socketMeta.get(ws);
+      if (meta) {
+        meta.isAlive = true;
+      }
+    });
     this.clients.set(ws, {
       id: "",
       name: "",
@@ -187,6 +220,11 @@ class HomeControllerWebSocketServer {
         this.adapter.log.debug("Unregistered client disconnected");
       }
       this.clients.delete(ws);
+      const meta = this.socketMeta.get(ws);
+      if (meta == null ? void 0 : meta.idleTimer) {
+        clearTimeout(meta.idleTimer);
+      }
+      this.socketMeta.delete(ws);
       this.notifyClientChange();
     });
     ws.on("error", (error) => {
@@ -201,11 +239,11 @@ class HomeControllerWebSocketServer {
     try {
       message = JSON.parse(data.toString());
     } catch {
-      this.sendError(ws, void 0, "INVALID_MESSAGE", "Invalid JSON");
+      this.sendError(ws, void 0, import_types.ErrorCodes.INVALID_MESSAGE, "Invalid JSON");
       return;
     }
     if (!message.type) {
-      this.sendError(ws, message.id, "INVALID_MESSAGE", "Missing message type");
+      this.sendError(ws, message.id, import_types.ErrorCodes.INVALID_MESSAGE, "Missing message type");
       return;
     }
     this.adapter.log.debug(`Received message: ${message.type}`);
@@ -215,10 +253,13 @@ class HomeControllerWebSocketServer {
         this.handleRegister(ws, message);
         break;
       case "getDevices":
-        this.handleGetDevices(ws, message);
+        void this.handleGetDevices(ws, message);
         break;
       case "getRooms":
-        this.handleGetRooms(ws, message);
+        void this.handleGetRooms(ws, message);
+        break;
+      case "getSnapshot":
+        void this.handleGetSnapshot(ws, message);
         break;
       case "help":
         this.handleHelp(ws, message);
@@ -227,7 +268,7 @@ class HomeControllerWebSocketServer {
       case "unsubscribe":
         break;
       default:
-        this.sendError(ws, message.id, "UNKNOWN_TYPE", `Unknown message type: ${message.type}`);
+        this.sendError(ws, message.id, import_types.ErrorCodes.UNKNOWN_TYPE, `Unknown message type: ${message.type}`);
     }
   }
   /**
@@ -286,7 +327,9 @@ class HomeControllerWebSocketServer {
    * Trigger a throttled update for logs
    */
   triggerLogUpdate() {
-    if (this.updateTimeout) return;
+    if (this.updateTimeout) {
+      return;
+    }
     this.updateTimeout = setTimeout(() => {
       this.updateTimeout = null;
       this.notifyClientChange();
@@ -313,6 +356,7 @@ class HomeControllerWebSocketServer {
    * Handle client registration
    */
   handleRegister(ws, message) {
+    var _a, _b;
     const regMsg = message;
     const { clientName, clientVersion, clientType } = regMsg.payload;
     const clientId = (0, import_uuid.v4)();
@@ -333,10 +377,20 @@ class HomeControllerWebSocketServer {
       payload: {
         clientId,
         serverVersion: this.serverVersion,
-        capabilities: ["devices", "rooms"]
+        protocolVersion: this.protocolVersion,
+        schemaVersion: this.schemaVersion,
+        capabilities: ["devices", "rooms", "stateChange", "subscribe", "setState", "batch", "compression"],
+        limits: {
+          maxMsgBytes: 131072,
+          maxEventsPerSecond: (_a = this.adapter.config.maxEventsPerSecond) != null ? _a : 50,
+          supportsBatch: true,
+          supportsCompression: true,
+          defaultSubscription: (_b = this.adapter.config.defaultSubscription) != null ? _b : "all"
+        }
       }
     };
     this.send(ws, response);
+    void this.sendInitialSnapshot(ws);
     this.notifyClientChange();
   }
   /**
@@ -345,11 +399,11 @@ class HomeControllerWebSocketServer {
   async handleGetDevices(ws, message) {
     const client = this.clients.get(ws);
     if (!(client == null ? void 0 : client.isRegistered)) {
-      this.sendError(ws, message.id, "NOT_REGISTERED", "Client must register first");
+      this.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
       return;
     }
     try {
-      const devices = await this.fetchDevices();
+      const devices = await this.snapshotService.getDevices();
       const response = {
         type: "devices",
         id: message.id,
@@ -358,7 +412,12 @@ class HomeControllerWebSocketServer {
       this.send(ws, response);
       this.adapter.log.debug(`Sent ${Object.keys(devices).length} devices to ${client.name}`);
     } catch (error) {
-      this.sendError(ws, message.id, "INTERNAL_ERROR", `Failed to fetch devices: ${error.message}`);
+      this.sendError(
+        ws,
+        message.id,
+        import_types.ErrorCodes.INTERNAL_ERROR,
+        `Failed to fetch devices: ${error.message}`
+      );
     }
   }
   /**
@@ -367,11 +426,11 @@ class HomeControllerWebSocketServer {
   async handleGetRooms(ws, message) {
     const client = this.clients.get(ws);
     if (!(client == null ? void 0 : client.isRegistered)) {
-      this.sendError(ws, message.id, "NOT_REGISTERED", "Client must register first");
+      this.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
       return;
     }
     try {
-      const rooms = await this.fetchRooms();
+      const rooms = await this.snapshotService.getRooms();
       const response = {
         type: "rooms",
         id: message.id,
@@ -380,86 +439,57 @@ class HomeControllerWebSocketServer {
       this.send(ws, response);
       this.adapter.log.debug(`Sent ${Object.keys(rooms).length} rooms to ${client.name}`);
     } catch (error) {
-      this.sendError(ws, message.id, "INTERNAL_ERROR", `Failed to fetch rooms: ${error.message}`);
+      this.sendError(
+        ws,
+        message.id,
+        import_types.ErrorCodes.INTERNAL_ERROR,
+        `Failed to fetch rooms: ${error.message}`
+      );
     }
   }
   /**
-   * Fetch all devices from ioBroker states
+   * Handle getSnapshot request
    */
-  async fetchDevices() {
-    const basePath = this.adapter.config.basePath;
-    const pattern = `${basePath}.devices.*`;
-    const states = await this.adapter.getForeignStatesAsync(pattern);
-    const devices = {};
-    for (const [id, state] of Object.entries(states)) {
-      if (!(state == null ? void 0 : state.val)) continue;
-      const deviceId = id.substring(`${basePath}.devices.`.length);
-      try {
-        const config = JSON.parse(state.val);
-        devices[deviceId] = config;
-      } catch {
-        this.adapter.log.warn(`Failed to parse device config for ${deviceId}`);
-      }
+  async handleGetSnapshot(ws, message) {
+    const client = this.clients.get(ws);
+    if (!(client == null ? void 0 : client.isRegistered)) {
+      this.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
+      return;
     }
-    const stateIds = /* @__PURE__ */ new Set();
-    for (const device of Object.values(devices)) {
-      if (device.capabilities) {
-        for (const cap of device.capabilities) {
-          if (cap.state) {
-            stateIds.add(cap.state);
-          }
-        }
-      }
+    try {
+      const seq = this.nextSeq();
+      const snapshot = await this.snapshotService.buildSnapshot(seq);
+      const response = {
+        type: "snapshot",
+        id: message.id,
+        payload: {
+          ...snapshot
+        },
+        seq
+      };
+      this.send(ws, response);
+    } catch (error) {
+      this.sendError(
+        ws,
+        message.id,
+        import_types.ErrorCodes.INTERNAL_ERROR,
+        `Failed to fetch snapshot: ${error.message}`
+      );
     }
-    if (stateIds.size > 0) {
-      const idArray = Array.from(stateIds);
-      await Promise.all(idArray.map(async (oid) => {
-        try {
-          const state = await this.adapter.getForeignStateAsync(oid);
-          if (state && state.val !== void 0 && state.val !== null) {
-            for (const device of Object.values(devices)) {
-              if (device.capabilities) {
-                for (const cap of device.capabilities) {
-                  if (cap.state === oid) {
-                    cap.value = state.val;
-                  }
-                }
-              }
-            }
-          }
-        } catch (error) {
-          this.adapter.log.warn(`Failed to fetch state ${oid}: ${error.message}`);
-        }
-      }));
-    }
-    return devices;
-  }
-  /**
-   * Fetch all rooms from ioBroker states
-   */
-  async fetchRooms() {
-    const basePath = this.adapter.config.basePath;
-    const pattern = `${basePath}.rooms.*`;
-    const states = await this.adapter.getForeignStatesAsync(pattern);
-    const rooms = {};
-    for (const [id, state] of Object.entries(states)) {
-      if (!(state == null ? void 0 : state.val)) continue;
-      const roomId = id.substring(`${basePath}.rooms.`.length);
-      try {
-        const config = JSON.parse(state.val);
-        rooms[roomId] = config;
-      } catch (error) {
-        this.adapter.log.warn(`Failed to parse room config for ${roomId}: ${error.message}`);
-      }
-    }
-    return rooms;
   }
   /**
    * Send message to client
    */
   send(ws, message) {
+    var _a, _b, _c;
     if (ws.readyState === import_ws.WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+      const enriched = {
+        ...message,
+        seq: (_a = message.seq) != null ? _a : this.nextSeq(),
+        ts: (_b = message.ts) != null ? _b : (/* @__PURE__ */ new Date()).toISOString(),
+        version: (_c = message.version) != null ? _c : this.schemaVersion
+      };
+      ws.send(JSON.stringify(enriched));
     }
   }
   /**
@@ -472,6 +502,104 @@ class HomeControllerWebSocketServer {
       error: { code, message }
     };
     this.send(ws, errorMsg);
+  }
+  /**
+   * Send initial snapshot after registration
+   */
+  async sendInitialSnapshot(ws) {
+    const client = this.clients.get(ws);
+    if (!(client == null ? void 0 : client.isRegistered)) {
+      return;
+    }
+    try {
+      const seq = this.nextSeq();
+      const snapshot = await this.snapshotService.buildSnapshot(seq);
+      const response = {
+        type: "initialSnapshot",
+        payload: { ...snapshot },
+        seq
+      };
+      this.send(ws, response);
+    } catch (error) {
+      this.adapter.log.warn(`Failed to send initialSnapshot: ${error.message}`);
+    }
+  }
+  /**
+   * Authenticate incoming connection (Basic or none)
+   */
+  authenticate(req) {
+    var _a;
+    const mode = (_a = this.adapter.config.authMode) != null ? _a : "none";
+    if (mode === "none") {
+      return { ok: true };
+    }
+    if (mode === "basic") {
+      const header = req.headers.authorization;
+      if (!header || !header.startsWith("Basic ")) {
+        return { ok: false, closeCode: 4001, reason: "AUTH_FAILED" };
+      }
+      const token = header.substring("Basic ".length);
+      const decoded = Buffer.from(token, "base64").toString("utf8");
+      const [user, pass] = decoded.split(":");
+      if (!user || pass === void 0) {
+        return { ok: false, closeCode: 4001, reason: "AUTH_FAILED" };
+      }
+      const expectedUser = this.adapter.config.authUser;
+      const expectedPass = this.adapter.config.authPassword;
+      if (expectedUser && expectedPass) {
+        if (user === expectedUser && pass === expectedPass) {
+          return { ok: true };
+        }
+        return { ok: false, closeCode: 4001, reason: "AUTH_FAILED" };
+      }
+      this.adapter.log.warn(
+        "Auth mode 'basic' is enabled but no credentials are configured; allowing connection."
+      );
+      return { ok: true };
+    }
+    return { ok: false, closeCode: 4004, reason: "PROTOCOL_VERSION_UNSUPPORTED" };
+  }
+  /**
+   * Heartbeat loop: ping and close idle sockets
+   */
+  checkHeartbeats() {
+    for (const ws of this.clients.keys()) {
+      const meta = this.socketMeta.get(ws);
+      if (!meta) {
+        continue;
+      }
+      if (!meta.isAlive) {
+        ws.close(4008, "IDLE_TIMEOUT");
+        this.clients.delete(ws);
+        if (meta.idleTimer) {
+          clearTimeout(meta.idleTimer);
+        }
+        this.socketMeta.delete(ws);
+        continue;
+      }
+      meta.isAlive = false;
+      if (ws.readyState === import_ws.WebSocket.OPEN) {
+        ws.ping();
+        if (meta.idleTimer) {
+          clearTimeout(meta.idleTimer);
+        }
+        meta.idleTimer = setTimeout(() => {
+          const stillMeta = this.socketMeta.get(ws);
+          if (stillMeta && !stillMeta.isAlive && ws.readyState === import_ws.WebSocket.OPEN) {
+            ws.close(4008, "IDLE_TIMEOUT");
+            this.clients.delete(ws);
+            this.socketMeta.delete(ws);
+          }
+        }, this.pingTimeoutMs);
+      }
+    }
+  }
+  /**
+   * Generate next sequence number
+   */
+  nextSeq() {
+    this.seqCounter += 1;
+    return this.seqCounter;
   }
 }
 // Annotate the CommonJS export names for ESM import in node:

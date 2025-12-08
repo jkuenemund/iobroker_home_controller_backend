@@ -1,3 +1,5 @@
+/* eslint-disable jsdoc/require-param, jsdoc/require-jsdoc */
+
 import type { DeviceConfig, RoomConfig, SnapshotPayload } from "../websocket/types";
 
 /**
@@ -52,7 +54,9 @@ export class SnapshotService {
 
 		// Parse configs first
 		for (const [id, state] of Object.entries(states)) {
-			if (!state?.val) continue;
+			if (!state?.val) {
+				continue;
+			}
 
 			const deviceId = id.substring(`${basePath}.devices.`.length);
 
@@ -86,8 +90,6 @@ export class SnapshotService {
 					try {
 						const state = await this.adapter.getForeignStateAsync(oid);
 						if (state && state.val !== undefined && state.val !== null) {
-							// Update matching capabilities
-							// Note: A state ID might be used by multiple devices/capabilities
 							for (const device of Object.values(devices)) {
 								if (device.capabilities) {
 									for (const cap of device.capabilities) {
@@ -119,7 +121,9 @@ export class SnapshotService {
 		const rooms: Record<string, RoomConfig> = {};
 
 		for (const [id, state] of Object.entries(states)) {
-			if (!state?.val) continue;
+			if (!state?.val) {
+				continue;
+			}
 
 			const roomId = id.substring(`${basePath}.rooms.`.length);
 

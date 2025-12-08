@@ -23,9 +23,12 @@ __export(websocket_server_exports, {
 });
 module.exports = __toCommonJS(websocket_server_exports);
 var import_ws = require("ws");
-var import_uuid = require("uuid");
 var import_snapshot_service = require("./services/snapshot-service");
 var import_types = require("./websocket/types");
+var import_routes = require("./websocket/routes");
+var import_state_change = require("./websocket/state-change");
+var import_subscriptions = require("./websocket/subscriptions");
+var import_codec = require("./websocket/codec");
 var import_types2 = require("./websocket/types");
 class HomeControllerWebSocketServer {
   wss = null;
@@ -40,12 +43,26 @@ class HomeControllerWebSocketServer {
   pingIntervalMs = 28e3;
   pingTimeoutMs = 1e4;
   socketMeta = /* @__PURE__ */ new WeakMap();
+  subscriptions;
   onClientChangeCallback = null;
   // Map stateId -> list of capabilities that use it
-  stateMap = /* @__PURE__ */ new Map();
+  stateChangeManager;
   constructor(adapter) {
+    var _a;
     this.adapter = adapter;
     this.snapshotService = new import_snapshot_service.SnapshotService(adapter);
+    this.subscriptions = new import_subscriptions.SubscriptionRegistry({
+      defaultSubscription: (_a = this.adapter.config.defaultSubscription) != null ? _a : "all"
+    });
+    this.stateChangeManager = new import_state_change.StateChangeManager(
+      {
+        adapter: this.adapter,
+        snapshotService: this.snapshotService,
+        clients: this.clients,
+        send: (ws, msg) => this.send(ws, msg)
+      },
+      this.subscriptions
+    );
   }
   /**
    * Set callback for when clients connect/disconnect
@@ -79,7 +96,7 @@ class HomeControllerWebSocketServer {
       }
       this.handleConnection(ws, req);
     });
-    this.subscribeToAllStates();
+    void this.stateChangeManager.subscribeToAllStates();
     this.wss.on("error", (error) => {
       this.adapter.log.error(`WebSocket server error: ${error.message}`);
     });
@@ -87,63 +104,10 @@ class HomeControllerWebSocketServer {
     this.adapter.log.info(`WebSocket server started on port ${this.adapter.config.wsPort}`);
   }
   /**
-   * Subscribe to all states defined in devices
-   */
-  async subscribeToAllStates() {
-    try {
-      const devices = await this.snapshotService.getDevices();
-      this.stateMap.clear();
-      const statesToSubscribe = /* @__PURE__ */ new Set();
-      for (const [deviceId, config] of Object.entries(devices)) {
-        if (config.capabilities) {
-          for (const cap of config.capabilities) {
-            if (cap.state) {
-              statesToSubscribe.add(cap.state);
-              const existing = this.stateMap.get(cap.state) || [];
-              existing.push({ deviceId, capability: cap.type });
-              this.stateMap.set(cap.state, existing);
-            }
-          }
-        }
-      }
-      for (const oid of statesToSubscribe) {
-        this.adapter.subscribeForeignStates(oid);
-      }
-      this.adapter.log.info(`Subscribed to ${statesToSubscribe.size} states for real-time updates`);
-    } catch (error) {
-      this.adapter.log.error(`Failed to subscribe to states: ${error.message}`);
-    }
-  }
-  /**
    * Handle state change from adapter
    */
   handleStateChange(id, state) {
-    const affected = this.stateMap.get(id);
-    if (affected && affected.length > 0) {
-      for (const item of affected) {
-        this.broadcastStateChange(item.deviceId, item.capability, id, state.val, state.ts);
-      }
-    }
-  }
-  /**
-   * Broadcast state change to all connected clients
-   */
-  broadcastStateChange(deviceId, capability, stateId, value, ts) {
-    const message = {
-      type: "stateChange",
-      id: void 0,
-      // Notification has no request ID
-      payload: {
-        deviceId,
-        capability,
-        state: stateId,
-        value,
-        timestamp: new Date(ts).toISOString()
-      }
-    };
-    for (const ws of this.clients.keys()) {
-      this.send(ws, message);
-    }
+    this.stateChangeManager.handleStateChange(id, state);
   }
   /**
    * Stop the WebSocket server
@@ -235,6 +199,7 @@ class HomeControllerWebSocketServer {
    * Handle incoming message from client
    */
   handleMessage(ws, data) {
+    var _a, _b;
     let message;
     try {
       message = JSON.parse(data.toString());
@@ -246,81 +211,19 @@ class HomeControllerWebSocketServer {
       this.sendError(ws, message.id, import_types.ErrorCodes.INVALID_MESSAGE, "Missing message type");
       return;
     }
+    const validation = (0, import_codec.validateIncoming)(message);
+    if (!validation.ok) {
+      this.sendError(
+        ws,
+        message.id,
+        import_types.ErrorCodes.INVALID_PAYLOAD,
+        (_b = (_a = validation.errors) == null ? void 0 : _a.join("; ")) != null ? _b : "Invalid payload"
+      );
+      return;
+    }
     this.adapter.log.debug(`Received message: ${message.type}`);
     this.logRequest(ws, message.type, message.id);
-    switch (message.type) {
-      case "register":
-        this.handleRegister(ws, message);
-        break;
-      case "getDevices":
-        void this.handleGetDevices(ws, message);
-        break;
-      case "getRooms":
-        void this.handleGetRooms(ws, message);
-        break;
-      case "getSnapshot":
-        void this.handleGetSnapshot(ws, message);
-        break;
-      case "help":
-        this.handleHelp(ws, message);
-        break;
-      case "subscribe":
-      case "unsubscribe":
-        break;
-      default:
-        this.sendError(ws, message.id, import_types.ErrorCodes.UNKNOWN_TYPE, `Unknown message type: ${message.type}`);
-    }
-  }
-  /**
-   * Handle help request
-   */
-  handleHelp(ws, message) {
-    const response = {
-      type: "help",
-      id: message.id,
-      payload: {
-        commands: [
-          {
-            command: "register",
-            description: "Register a client with the server",
-            example: {
-              type: "register",
-              id: "req-1",
-              payload: {
-                clientName: "My Client",
-                clientVersion: "1.0.0",
-                clientType: "mobile"
-              }
-            }
-          },
-          {
-            command: "getDevices",
-            description: "Get all available devices",
-            example: {
-              type: "getDevices",
-              id: "req-2"
-            }
-          },
-          {
-            command: "getRooms",
-            description: "Get all available rooms",
-            example: {
-              type: "getRooms",
-              id: "req-3"
-            }
-          },
-          {
-            command: "help",
-            description: "Get available commands",
-            example: {
-              type: "help",
-              id: "req-4"
-            }
-          }
-        ]
-      }
-    };
-    this.send(ws, response);
+    (0, import_routes.routeMessage)(this.buildHandlerContext(), ws, message);
   }
   updateTimeout = null;
   /**
@@ -353,131 +256,6 @@ class HomeControllerWebSocketServer {
     }
   }
   /**
-   * Handle client registration
-   */
-  handleRegister(ws, message) {
-    var _a, _b;
-    const regMsg = message;
-    const { clientName, clientVersion, clientType } = regMsg.payload;
-    const clientId = (0, import_uuid.v4)();
-    const client = {
-      id: clientId,
-      name: clientName || "Unknown",
-      version: clientVersion || "0.0.0",
-      clientType: clientType || "other",
-      connectedAt: /* @__PURE__ */ new Date(),
-      isRegistered: true,
-      recentRequests: []
-    };
-    this.clients.set(ws, client);
-    this.adapter.log.info(`Client registered: ${client.name} v${client.version} (${clientId})`);
-    const response = {
-      type: "registered",
-      id: message.id,
-      payload: {
-        clientId,
-        serverVersion: this.serverVersion,
-        protocolVersion: this.protocolVersion,
-        schemaVersion: this.schemaVersion,
-        capabilities: ["devices", "rooms", "stateChange", "subscribe", "setState", "batch", "compression"],
-        limits: {
-          maxMsgBytes: 131072,
-          maxEventsPerSecond: (_a = this.adapter.config.maxEventsPerSecond) != null ? _a : 50,
-          supportsBatch: true,
-          supportsCompression: true,
-          defaultSubscription: (_b = this.adapter.config.defaultSubscription) != null ? _b : "all"
-        }
-      }
-    };
-    this.send(ws, response);
-    void this.sendInitialSnapshot(ws);
-    this.notifyClientChange();
-  }
-  /**
-   * Handle getDevices request
-   */
-  async handleGetDevices(ws, message) {
-    const client = this.clients.get(ws);
-    if (!(client == null ? void 0 : client.isRegistered)) {
-      this.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
-      return;
-    }
-    try {
-      const devices = await this.snapshotService.getDevices();
-      const response = {
-        type: "devices",
-        id: message.id,
-        payload: { devices }
-      };
-      this.send(ws, response);
-      this.adapter.log.debug(`Sent ${Object.keys(devices).length} devices to ${client.name}`);
-    } catch (error) {
-      this.sendError(
-        ws,
-        message.id,
-        import_types.ErrorCodes.INTERNAL_ERROR,
-        `Failed to fetch devices: ${error.message}`
-      );
-    }
-  }
-  /**
-   * Handle getRooms request
-   */
-  async handleGetRooms(ws, message) {
-    const client = this.clients.get(ws);
-    if (!(client == null ? void 0 : client.isRegistered)) {
-      this.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
-      return;
-    }
-    try {
-      const rooms = await this.snapshotService.getRooms();
-      const response = {
-        type: "rooms",
-        id: message.id,
-        payload: { rooms }
-      };
-      this.send(ws, response);
-      this.adapter.log.debug(`Sent ${Object.keys(rooms).length} rooms to ${client.name}`);
-    } catch (error) {
-      this.sendError(
-        ws,
-        message.id,
-        import_types.ErrorCodes.INTERNAL_ERROR,
-        `Failed to fetch rooms: ${error.message}`
-      );
-    }
-  }
-  /**
-   * Handle getSnapshot request
-   */
-  async handleGetSnapshot(ws, message) {
-    const client = this.clients.get(ws);
-    if (!(client == null ? void 0 : client.isRegistered)) {
-      this.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
-      return;
-    }
-    try {
-      const seq = this.nextSeq();
-      const snapshot = await this.snapshotService.buildSnapshot(seq);
-      const response = {
-        type: "snapshot",
-        id: message.id,
-        payload: {
-          ...snapshot
-        },
-        seq
-      };
-      this.send(ws, response);
-    } catch (error) {
-      this.sendError(
-        ws,
-        message.id,
-        import_types.ErrorCodes.INTERNAL_ERROR,
-        `Failed to fetch snapshot: ${error.message}`
-      );
-    }
-  }
-  /**
    * Send message to client
    */
   send(ws, message) {
@@ -502,6 +280,21 @@ class HomeControllerWebSocketServer {
       error: { code, message }
     };
     this.send(ws, errorMsg);
+  }
+  buildHandlerContext() {
+    return {
+      adapter: this.adapter,
+      clients: this.clients,
+      snapshotService: this.snapshotService,
+      nextSeq: () => this.nextSeq(),
+      serverVersion: this.serverVersion,
+      protocolVersion: this.protocolVersion,
+      schemaVersion: this.schemaVersion,
+      subscriptions: this.subscriptions,
+      send: (socket, msg) => this.send(socket, msg),
+      sendError: (socket, id, code, msg) => this.sendError(socket, id, code, msg),
+      notifyClientChange: () => this.notifyClientChange()
+    };
   }
   /**
    * Send initial snapshot after registration

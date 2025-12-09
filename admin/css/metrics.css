@@ -1,0 +1,90 @@
+/* Metrics-specific styles */
+.metrics-row {
+	display: none;
+	background: #f8fafc;
+}
+
+.metrics-row.visible {
+	display: table-row;
+}
+
+.metrics-panel {
+	padding: 16px;
+	border-left: 3px solid #0ea5e9;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.metrics-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.metric-item {
+	display: grid;
+	grid-template-columns: 140px 1fr 110px 160px;
+	gap: 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid #e2e8f0;
+	align-items: center;
+	font-size: 0.9em;
+}
+
+.metric-item:last-child {
+	border-bottom: none;
+}
+
+.metric-name {
+	font-weight: 600;
+	color: #0f172a;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.metric-value {
+	font-family: 'Courier New', monospace;
+	color: #0f172a;
+}
+
+.metric-ts {
+	color: #94a3b8;
+	font-size: 0.85em;
+}
+
+.metric-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 12px;
+	font-weight: 600;
+	font-size: 0.8em;
+	color: white;
+	width: fit-content;
+}
+
+.metric-badge.ok {
+	background: #10b981;
+}
+
+.metric-badge.warn {
+	background: #f59e0b;
+}
+
+.metric-badge.alarm {
+	background: #ef4444;
+}
+
+.metric-badge.nodata {
+	background: #94a3b8;
+}
+
+.metric-summary-badges {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+

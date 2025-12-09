@@ -11,17 +11,10 @@ import type {
 import type { SnapshotService } from "../services/snapshot-service";
 import type { SubscriptionRegistry } from "./subscriptions";
 import { applySubscriptions } from "./handlers";
+import type { AdapterInterface } from "./adapter-interface";
 
 export interface StateChangeDeps {
-	adapter: {
-		log: {
-			debug: (msg: string) => void;
-			info: (msg: string) => void;
-			warn: (msg: string) => void;
-			error: (msg: string) => void;
-		};
-		subscribeForeignStates: (pattern: string) => void;
-	};
+	adapter: Pick<AdapterInterface, "log" | "subscribeForeignStates" | "config">;
 	snapshotService: SnapshotService;
 	clients: Map<WebSocket, ConnectedClient>;
 	send: (ws: WebSocket, message: BaseMessage) => void;

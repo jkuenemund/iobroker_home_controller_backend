@@ -264,7 +264,8 @@ async function handleSetState(ctx, ws, message) {
       ctx.sendError(ws, message.id, import_types.ErrorCodes.PERMISSION_DENIED, (_a = validation.reason) != null ? _a : "Not allowed");
       return;
     }
-    await ctx.adapter.setForeignStateAsync(message.payload.state, message.payload.value, (_b = message.payload.ack) != null ? _b : false);
+    const value = message.payload.value;
+    await ctx.adapter.setForeignStateAsync(message.payload.state, value, (_b = message.payload.ack) != null ? _b : false);
     ctx.send(ws, { type: "ack", id: message.id });
   } catch (error) {
     ctx.sendError(

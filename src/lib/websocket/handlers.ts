@@ -20,20 +20,10 @@ import type {
 import { ErrorCodes } from "./types";
 import type { SnapshotService } from "../services/snapshot-service";
 import type { SubscriptionRegistry } from "./subscriptions";
+import type { AdapterInterface } from "./adapter-interface";
 
 export interface HandlerContext {
-	adapter: {
-		log: {
-			debug: (msg: string) => void;
-			info: (msg: string) => void;
-			warn: (msg: string) => void;
-			error: (msg: string) => void;
-		};
-		config: {
-			maxEventsPerSecond?: number;
-			defaultSubscription?: "all" | "none";
-		};
-	};
+	adapter: Pick<AdapterInterface, "log" | "config" | "setForeignStateAsync">;
 	clients: Map<WebSocket, ConnectedClient>;
 	snapshotService: SnapshotService;
 	nextSeq: () => number;
@@ -313,7 +303,8 @@ export async function handleSetState(ctx: HandlerContext, ws: WebSocket, message
 			return;
 		}
 
-		await ctx.adapter.setForeignStateAsync(message.payload.state, message.payload.value, message.payload.ack ?? false);
+		const value = message.payload.value as ioBroker.SettableState | ioBroker.StateValue | ioBroker.State;
+		await ctx.adapter.setForeignStateAsync(message.payload.state, value, message.payload.ack ?? false);
 		// respond with ack message (could be a stateChange later)
 		ctx.send(ws, { type: "ack", id: message.id });
 	} catch (error) {

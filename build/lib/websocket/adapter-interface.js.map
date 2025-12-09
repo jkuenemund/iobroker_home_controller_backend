@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../src/lib/websocket/adapter-interface.ts"],
+  "sourcesContent": ["/**\n * Narrow adapter surface required by the WebSocket layer.\n * Uses only the methods we actually need to keep types minimal and compatible.\n */\nexport type AdapterInterface = {\n\tlog: {\n\t\tdebug: (msg: string) => void;\n\t\tinfo: (msg: string) => void;\n\t\twarn: (msg: string) => void;\n\t\terror: (msg: string) => void;\n\t};\n\tconfig: {\n\t\tbasePath: string;\n\t\twsPort: number;\n\t\tauthMode?: \"none\" | \"basic\";\n\t\tauthUser?: string;\n\t\tauthPassword?: string;\n\t\tdefaultSubscription?: \"all\" | \"none\";\n\t\tmaxEventsPerSecond?: number;\n\t};\n\tgetForeignStatesAsync: ioBroker.Adapter[\"getForeignStatesAsync\"];\n\tgetForeignStateAsync: ioBroker.Adapter[\"getForeignStateAsync\"];\n\tsubscribeForeignStates: ioBroker.Adapter[\"subscribeForeignStates\"];\n\tsetForeignStateAsync: (\n\t\tid: string,\n\t\tstate: ioBroker.SettableState | ioBroker.State | ioBroker.StateValue,\n\t\tack?: boolean,\n\t) => ioBroker.SetStatePromise;\n};\n\n"],
+  "mappings": ";;;;;;;;;;;;;;AAAA;AAAA;",
+  "names": []
+}

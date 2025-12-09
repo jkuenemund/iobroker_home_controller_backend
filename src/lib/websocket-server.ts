@@ -20,33 +20,10 @@ import { StateChangeManager } from "./websocket/state-change";
 import { SubscriptionRegistry } from "./websocket/subscriptions";
 import { validateIncoming } from "./websocket/codec";
 
+import type { AdapterInterface } from "./websocket/adapter-interface";
+
 // Re-export for convenience
 export { ErrorCodes } from "./websocket/types";
-
-/**
- * Adapter interface - subset of ioBroker adapter methods we need
- */
-interface AdapterInterface {
-	log: {
-		debug: (msg: string) => void;
-		info: (msg: string) => void;
-		warn: (msg: string) => void;
-		error: (msg: string) => void;
-	};
-	config: {
-		basePath: string;
-		wsPort: number;
-		authMode?: "none" | "basic";
-		authUser?: string;
-		authPassword?: string;
-		defaultSubscription?: "all" | "none";
-		maxEventsPerSecond?: number;
-	};
-	getForeignStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
-	getForeignStateAsync: (id: string) => Promise<ioBroker.State | null | undefined>;
-	subscribeForeignStates: (pattern: string) => void;
-	setForeignStateAsync: (id: string, value: unknown, ack?: boolean) => Promise<void>;
-}
 
 /**
  * WebSocket Server class for Home Controller

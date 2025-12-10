@@ -198,6 +198,8 @@ export interface RoomMetric {
 	unit?: string;
 	value?: unknown;
 	ts?: string;
+	status?: "ok" | "warn" | "alarm" | "nodata";
+	id?: string;
 }
 
 /**
@@ -331,6 +333,24 @@ export type ClientMessage =
 /**
  * All possible server → client message types
  */
+export interface RoomMetricsUpdateBatchMessage extends BaseMessage {
+	type: "roomMetricsUpdateBatch";
+	payload: {
+		rooms: Array<{
+			roomId: string;
+			metrics: Array<{
+				id: string;
+				value: unknown;
+				ts: string;
+				status?: "ok" | "warn" | "alarm" | "nodata";
+				unit?: string;
+				label?: string;
+				type?: string;
+			}>;
+		}>;
+	};
+}
+
 export type ServerMessage =
 	| RegisteredResponse
 	| DevicesResponse
@@ -341,6 +361,7 @@ export type ServerMessage =
 	| StateChangeMessage
 	| StateChangeBatchMessage
 	| ThrottleHintMessage
+	| RoomMetricsUpdateBatchMessage
 	| ErrorMessage;
 
 // =============================================================================

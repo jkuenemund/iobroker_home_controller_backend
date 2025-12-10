@@ -49,6 +49,7 @@ function handleRegister(ctx, ws, message) {
     recentRequests: []
   };
   ctx.clients.set(ws, client);
+  ctx.subscriptions.setDefault(ws);
   ctx.adapter.log.info(`Client registered: ${client.name} v${client.version} (${clientId})`);
   const response = {
     type: "registered",

@@ -54,6 +54,21 @@ function updateValueDisplay(element, value) {
 	}
 }
 
+// Shared cache for room metrics values
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+window.roomMetricsCache = window.roomMetricsCache || {};
+
+// Metrics timer helpers
+function formatCountdown(ms) {
+	if (ms <= 0) return "bald";
+	const totalSec = Math.floor(ms / 1000);
+	if (totalSec < 60) return `${totalSec}s`;
+	const min = Math.floor(totalSec / 60);
+	const sec = totalSec % 60;
+	return `${min}m ${sec}s`;
+}
+
 const templates = {
 	devices: {
 		name: "New Device",

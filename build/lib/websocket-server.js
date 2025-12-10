@@ -29,6 +29,7 @@ var import_routes = require("./websocket/routes");
 var import_state_change = require("./websocket/state-change");
 var import_subscriptions = require("./websocket/subscriptions");
 var import_codec = require("./websocket/codec");
+var import_room_metrics = require("./websocket/room-metrics");
 var import_types2 = require("./websocket/types");
 class HomeControllerWebSocketServer {
   wss = null;
@@ -47,6 +48,7 @@ class HomeControllerWebSocketServer {
   onClientChangeCallback = null;
   // Map stateId -> list of capabilities that use it
   stateChangeManager;
+  roomMetricsManager;
   constructor(adapter) {
     var _a;
     this.adapter = adapter;
@@ -63,6 +65,13 @@ class HomeControllerWebSocketServer {
       },
       this.subscriptions
     );
+    this.roomMetricsManager = new import_room_metrics.RoomMetricsManager({
+      adapter: this.adapter,
+      snapshotService: this.snapshotService,
+      clients: this.clients,
+      subscriptions: this.subscriptions,
+      send: (ws, msg) => this.send(ws, msg)
+    });
   }
   /**
    * Set callback for when clients connect/disconnect
@@ -97,6 +106,7 @@ class HomeControllerWebSocketServer {
       this.handleConnection(ws, req);
     });
     void this.stateChangeManager.subscribeToAllStates();
+    void this.roomMetricsManager.subscribeToAllMetrics();
     this.wss.on("error", (error) => {
       this.adapter.log.error(`WebSocket server error: ${error.message}`);
     });
@@ -108,6 +118,7 @@ class HomeControllerWebSocketServer {
    */
   handleStateChange(id, state) {
     this.stateChangeManager.handleStateChange(id, state);
+    this.roomMetricsManager.handleStateChange(id, state);
   }
   /**
    * Stop the WebSocket server

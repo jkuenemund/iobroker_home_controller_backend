@@ -92,6 +92,23 @@ export class SubscriptionRegistry {
 		return true;
 	}
 
+	public shouldDeliverRoom(ws: WebSocket, roomsPayload: { roomId: string }[]): boolean {
+		const filters = this.filters.get(ws);
+		if (!filters && this.deps.defaultSubscription === "none") {
+			return false;
+		}
+		if (!filters || Object.keys(filters).length === 0) {
+			return true;
+		}
+		const roomFilter = filters.rooms;
+		if (!roomFilter || roomFilter.length === 0) {
+			// no room filter means deliver
+			return true;
+		}
+		// deliver if any room matches
+		return roomsPayload.some(r => roomFilter.includes(r.roomId));
+	}
+
 	public remove(ws: WebSocket): void {
 		this.filters.delete(ws);
 	}

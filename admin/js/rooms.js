@@ -18,6 +18,29 @@ function normalizeRoomData(relativeId, data, currentTab) {
 	data.__metrics = metricsArray;
 	data.__metricsCount = metricsArray.length || (typeof data.metrics === "number" ? data.metrics : 0);
 
+	// cache and indexes for updates/subscriptions
+	if (!window.roomMetricsCache) {
+		// @ts-ignore
+		window.roomMetricsCache = {};
+	}
+	if (!window.metricOids) {
+		// @ts-ignore
+		window.metricOids = new Set();
+	}
+	if (!window.metricStateIndex) {
+		// @ts-ignore
+		window.metricStateIndex = new Map();
+	}
+	// store a shallow copy to keep unit/label/type
+	window.roomMetricsCache[relativeId] = metricsArray.map(m => ({ ...m }));
+	metricsArray.forEach(m => {
+		if (m.state) {
+			window.metricOids.add(m.state);
+			const key = m.state;
+			window.metricStateIndex.set(key, { roomId: relativeId, metricId: m.id || m.state || m.type });
+		}
+	});
+
 	if (currentTab === "rooms") {
 		console.debug("[Rooms] parsed room", relativeId, {
 			metricsType: typeof data.metrics,
@@ -86,6 +109,10 @@ function addMetricsRow(data, columns, tableBody) {
 	data.__metrics.forEach(metric => {
 		const item = document.createElement("div");
 		item.className = "metric-item";
+		const metricId = metric.id || metric.state || metric.type || "";
+		if (metricId) {
+			item.dataset.metricId = metricId;
+		}
 
 		const nameDiv = document.createElement("div");
 		nameDiv.className = "metric-name";
@@ -157,6 +184,24 @@ function addMetricsRow(data, columns, tableBody) {
 			item.valueDiv.textContent = `${displayVal}${item.unit}`;
 			item.tsDiv.textContent = ts ? relativeTime(ts) : "–";
 
+			// Sync fetched value into the cache so later updates keep sibling metrics intact
+			const roomId = data.id;
+			const metricKey = item.metric.id || item.metric.state || item.metric.type;
+			if (metricKey) {
+				const cache = window.roomMetricsCache[roomId] || [];
+				const byId = new Map(cache.map(m => [m.id || m.state || m.type, m]));
+				const existing = byId.get(metricKey) || {};
+				byId.set(metricKey, {
+					...existing,
+					...item.metric,
+					id: metricKey,
+					value: val,
+					ts,
+					status,
+				});
+				window.roomMetricsCache[roomId] = Array.from(byId.values());
+			}
+
 			if (status === "nodata") {
 				console.debug("[Rooms] metric nodata status (after getState)", {
 					roomId: data.id,
@@ -170,7 +215,131 @@ function addMetricsRow(data, columns, tableBody) {
 	});
 }
 
+function mergeRoomMetrics(roomId, updates) {
+	if (!window.roomMetricsCache) return;
+	const cache = window.roomMetricsCache[roomId] || [];
+	const byId = new Map(cache.map(m => [m.id || m.state || m.type, m]));
+	updates.forEach(up => {
+		const key = up.id || up.state || up.type;
+		if (!key) return;
+		const existing = byId.get(key) || {};
+		const nextValue = up.value !== undefined ? up.value : existing.value;
+		const nextStatus =
+			up.status ||
+			existing.status ||
+			(nextValue !== undefined && nextValue !== null ? "ok" : up.state || existing.state ? "ok" : "nodata");
+		byId.set(key, {
+			...existing,
+			...up,
+			id: key,
+			value: nextValue,
+			status: nextStatus,
+			label: up.label || existing.label || existing.name,
+			name: up.label || existing.name,
+		});
+	});
+	const merged = Array.from(byId.values());
+	window.roomMetricsCache[roomId] = merged;
+	return merged;
+}
+
+function updateRoomMetricsDom(roomId, metrics) {
+	const row = document.querySelector(`tr[data-device-id="${roomId}"]`);
+	if (!row) return;
+	// update summary cell (metrics column is index 4)
+	const metricsCell = row.children[4];
+	if (metricsCell) {
+		metricsCell.innerHTML = renderMetricSummary(metrics, metrics.length);
+	}
+	// update details row if present
+	const metricsRow = row.nextElementSibling;
+	if (!metricsRow || !metricsRow.classList.contains("metrics-row")) return;
+	const items = metricsRow.querySelectorAll(".metric-item");
+	items.forEach(item => {
+		const key = item.dataset.metricId;
+		if (!key) return;
+		const metric = metrics.find(m => (m.id || m.state || m.type) === key);
+		if (!metric) return;
+		const valueDiv = item.querySelector(".metric-value");
+		const badge = item.querySelector(".metric-badge");
+		const tsDiv = item.querySelector(".metric-ts");
+		const unit = metric.unit ? ` ${metric.unit}` : "";
+		const val = metric.value !== undefined && metric.value !== null ? metric.value : "-";
+		if (valueDiv) valueDiv.textContent = `${val}${unit}`;
+		const status = (metric.status || (metric.value !== undefined && metric.value !== null ? "ok" : "nodata")).toLowerCase();
+		if (badge) {
+			badge.className = `metric-badge ${status}`;
+			badge.textContent = status.toUpperCase();
+		}
+		if (tsDiv) tsDiv.textContent = metric.ts ? relativeTime(new Date(metric.ts).getTime()) : "–";
+	});
+}
+
+function applyRoomMetricsUpdateBatch(payload) {
+	if (!payload?.rooms) return;
+	payload.rooms.forEach(room => {
+		const merged = mergeRoomMetrics(room.roomId, room.metrics);
+		if (merged) {
+			updateRoomMetricsDom(room.roomId, merged);
+		}
+	});
+}
+
+function handleMetricStateChange(id, state) {
+	if (!window.metricStateIndex) return;
+	const ref = window.metricStateIndex.get(id);
+	if (!ref) return;
+	const updates = [
+		{
+			id: ref.metricId,
+			state: id,
+			value: state?.val,
+			ts: state?.ts ? new Date(state.ts).toISOString() : new Date().toISOString(),
+			status: state?.val === undefined || state?.val === null ? "nodata" : "ok",
+		},
+	];
+	const merged = mergeRoomMetrics(ref.roomId, updates);
+	if (merged) {
+		updateRoomMetricsDom(ref.roomId, merged);
+	} else {
+		enqueuePendingMetricUpdate(ref.roomId, updates[0]);
+	}
+}
+
+function subscribeMetricStates() {
+	if (!window.metricOids || !window.socket) return;
+	window.metricOids.forEach(oid => {
+		window.socket.emit("subscribe", oid);
+	});
+}
+
+// expose for app.js
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+window.applyRoomMetricsUpdateBatch = applyRoomMetricsUpdateBatch;
+// @ts-ignore
+window.handleMetricStateChange = handleMetricStateChange;
+// @ts-ignore
+window.subscribeMetricStates = subscribeMetricStates;
+
+function resetRoomMetricsCaches() {
+	// @ts-ignore
+	window.roomMetricsCache = {};
+	// @ts-ignore
+	window.pendingRoomMetricUpdates = new Map();
+	// @ts-ignore
+	window.metricOids = new Set();
+	// @ts-ignore
+	window.metricStateIndex = new Map();
+}
+
+// expose for app.js
+// @ts-ignore
+window.resetRoomMetricsCaches = resetRoomMetricsCaches;
+
 function renderRoomRows(states, targetPath, columns, tableBody, currentTab) {
+	resetRoomMetricsCaches();
+
 	Object.keys(states)
 		.sort()
 		.forEach(id => {
@@ -190,6 +359,18 @@ function renderRoomRows(states, targetPath, columns, tableBody, currentTab) {
 
 			buildRoomRow(data, columns, tableBody);
 			addMetricsRow(data, columns, tableBody);
+
+			// apply pending updates if any
+			if (window.pendingRoomMetricUpdates && window.pendingRoomMetricUpdates.has(relativeId)) {
+				const updates = window.pendingRoomMetricUpdates.get(relativeId);
+				if (updates && updates.length > 0) {
+					const merged = mergeRoomMetrics(relativeId, updates);
+					if (merged) {
+						updateRoomMetricsDom(relativeId, merged);
+					}
+				}
+				window.pendingRoomMetricUpdates.delete(relativeId);
+			}
 		});
 }
 
@@ -202,5 +383,15 @@ function toggleMetrics(iconElement) {
 		metricsRow.classList.toggle("visible");
 		iconElement.classList.toggle("expanded");
 	}
+}
+
+function enqueuePendingMetricUpdate(roomId, update) {
+	if (!window.pendingRoomMetricUpdates) {
+		// @ts-ignore
+		window.pendingRoomMetricUpdates = new Map();
+	}
+	const arr = window.pendingRoomMetricUpdates.get(roomId) || [];
+	arr.push(update);
+	window.pendingRoomMetricUpdates.set(roomId, arr);
 }
 

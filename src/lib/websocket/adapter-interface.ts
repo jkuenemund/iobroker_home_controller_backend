@@ -17,6 +17,7 @@ export type AdapterInterface = {
 		authPassword?: string;
 		defaultSubscription?: "all" | "none";
 		maxEventsPerSecond?: number;
+	roomMetricsBatchIntervalSec?: number;
 	};
 	getForeignStatesAsync: ioBroker.Adapter["getForeignStatesAsync"];
 	getForeignStateAsync: ioBroker.Adapter["getForeignStateAsync"];

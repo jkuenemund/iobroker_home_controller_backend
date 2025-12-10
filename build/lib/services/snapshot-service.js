@@ -115,6 +115,7 @@ class SnapshotService {
     const pattern = `${basePath}.rooms.*`;
     const states = await this.adapter.getForeignStatesAsync(pattern);
     const rooms = {};
+    const metricStateIds = /* @__PURE__ */ new Set();
     for (const [id, state] of Object.entries(states)) {
       if (!(state == null ? void 0 : state.val)) {
         continue;
@@ -122,10 +123,50 @@ class SnapshotService {
       const roomId = id.substring(`${basePath}.rooms.`.length);
       try {
         const config = JSON.parse(state.val);
+        if (config.metrics && Array.isArray(config.metrics)) {
+          config.metrics = config.metrics.map((m) => {
+            const metric = { ...m };
+            if (!metric.id) {
+              metric.id = metric.state || metric.type;
+            }
+            if (!metric.label) {
+              metric.label = metric.type || metric.id;
+            }
+            if (metric.state) {
+              metricStateIds.add(metric.state);
+            }
+            return metric;
+          });
+        }
         rooms[roomId] = config;
       } catch (error) {
         this.adapter.log.warn(`Failed to parse room config for ${roomId}: ${error.message}`);
       }
+    }
+    if (metricStateIds.size > 0) {
+      const idArray = Array.from(metricStateIds);
+      await Promise.all(
+        idArray.map(async (oid) => {
+          try {
+            const state = await this.adapter.getForeignStateAsync(oid);
+            if (state) {
+              for (const room of Object.values(rooms)) {
+                if (room.metrics) {
+                  for (const metric of room.metrics) {
+                    if (metric.state === oid) {
+                      metric.value = state.val;
+                      metric.ts = state.ts ? new Date(state.ts).toISOString() : void 0;
+                      metric.status = state.val === void 0 || state.val === null ? "nodata" : metric.status || "ok";
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            this.adapter.log.warn(`Failed to fetch metric state ${oid}: ${error.message}`);
+          }
+        })
+      );
     }
     return rooms;
   }

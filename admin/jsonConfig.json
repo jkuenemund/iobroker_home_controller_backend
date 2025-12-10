@@ -23,6 +23,17 @@
                     "md": 6,
                     "lg": 4,
                     "help": "Port for WebSocket API (default: 8082)"
+                },
+                "roomMetricsBatchIntervalSec": {
+                    "type": "number",
+                    "label": "Room metrics batch interval (sec)",
+                    "default": 60,
+                    "min": 5,
+                    "max": 3600,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "help": "Sendeintervall für roomMetricsUpdateBatch (Sekunden)"
                 }
             }
         }

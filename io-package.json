@@ -94,7 +94,8 @@
 	},
 	"native": {
 		"basePath": "0_userdata.0.home_controller",
-		"wsPort": 8082
+		"wsPort": 8082,
+		"roomMetricsBatchIntervalSec": 60
 	},
 	"objects": [],
 	"instanceObjects": []

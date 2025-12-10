@@ -56,6 +56,8 @@ export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: Base
 		recentRequests: [],
 	};
 	ctx.clients.set(ws, client);
+	// apply default subscription strategy (all/none)
+	ctx.subscriptions.setDefault(ws);
 
 	ctx.adapter.log.info(`Client registered: ${client.name} v${client.version} (${clientId})`);
 

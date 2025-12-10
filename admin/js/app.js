@@ -2,9 +2,13 @@ let socket;
 const statusEl = document.getElementById("status");
 const basePathEl = document.getElementById("basePath");
 const tableBody = document.querySelector("#deviceTable tbody");
+const metricsTimerEl = document.getElementById("metricsTimer");
 
 let currentBasePath = "";
 let currentTab = "devices";
+let roomMetricsIntervalSec = 60;
+let nextMetricsAt = 0;
+let metricsTimerHandle = null;
 
 const columns = {
 	devices: [
@@ -40,6 +44,23 @@ function switchTab(tabName) {
 	if (currentBasePath) {
 		loadData();
 	}
+}
+
+function startMetricsCountdown() {
+	if (!metricsTimerEl) return;
+	if (metricsTimerHandle) {
+		clearInterval(metricsTimerHandle);
+	}
+	const tick = () => {
+		if (!nextMetricsAt || nextMetricsAt <= Date.now()) {
+			metricsTimerEl.textContent = `Metrics batch ~ alle ${roomMetricsIntervalSec}s`;
+			return;
+		}
+		const remaining = nextMetricsAt - Date.now();
+		metricsTimerEl.textContent = `Nächster Metrics-Batch in ${formatCountdown(remaining)} (Intervall ${roomMetricsIntervalSec}s)`;
+	};
+	tick();
+	metricsTimerHandle = setInterval(tick, 1000);
 }
 
 function buildHeader() {
@@ -78,6 +99,9 @@ function loadData() {
 			renderDeviceRows(states, targetPath, columns, tableBody);
 		} else {
 			renderRoomRows(states, targetPath, columns, tableBody, currentTab);
+			if (window.subscribeMetricStates) {
+				window.subscribeMetricStates();
+			}
 		}
 	});
 }
@@ -94,8 +118,13 @@ function initSocket() {
 		socket.emit("getObject", "system.adapter.home_controller_backend.0", (err, obj) => {
 			if (!err && obj && obj.native) {
 				currentBasePath = obj.native.basePath;
+				if (obj.native.roomMetricsBatchIntervalSec && obj.native.roomMetricsBatchIntervalSec > 0) {
+					roomMetricsIntervalSec = obj.native.roomMetricsBatchIntervalSec;
+				}
 				console.log("Adapter config loaded:", obj.native);
 				basePathEl.textContent = currentBasePath || "Not set";
+				nextMetricsAt = Date.now() + roomMetricsIntervalSec * 1000;
+				startMetricsCountdown();
 
 				if (currentBasePath) {
 					loadData();
@@ -103,6 +132,11 @@ function initSocket() {
 
 				loadConnectedClients();
 				socket.emit("subscribe", "home_controller_backend.0.info.connectedClients");
+
+				// Subscribe to metric states for live updates
+				if (window.subscribeMetricStates) {
+					window.subscribeMetricStates();
+				}
 			} else {
 				basePathEl.textContent = "Error loading config";
 				console.error("Error loading adapter config:", err);
@@ -125,9 +159,20 @@ function initSocket() {
 			try {
 				const valEls = document.querySelectorAll(`.live-val[data-oid="${id}"]`);
 				valEls.forEach(el => updateValueDisplay(el, state.val));
+				if (window.handleMetricStateChange) {
+					window.handleMetricStateChange(id, state);
+				}
 			} catch (e) {
 				console.error("Error updating value display:", e);
 			}
+		}
+	});
+
+	socket.on("roomMetricsUpdateBatch", message => {
+		if (message?.payload?.rooms) {
+			applyRoomMetricsUpdateBatch(message.payload);
+			nextMetricsAt = Date.now() + roomMetricsIntervalSec * 1000;
+			startMetricsCountdown();
 		}
 	});
 }

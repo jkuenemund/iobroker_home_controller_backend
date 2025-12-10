@@ -17,6 +17,7 @@ export interface SnapshotAdapterDeps {
 	};
 	getForeignStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
 	getForeignStateAsync: (id: string) => Promise<ioBroker.State | null | undefined>;
+	subscribeForeignStates: (pattern: string) => void;
 }
 
 export class SnapshotService {
@@ -136,6 +137,7 @@ export class SnapshotService {
 
 		const states = await this.adapter.getForeignStatesAsync(pattern);
 		const rooms: Record<string, RoomConfig> = {};
+		const metricStateIds = new Set<string>();
 
 		for (const [id, state] of Object.entries(states)) {
 			if (!state?.val) {
@@ -146,10 +148,54 @@ export class SnapshotService {
 
 			try {
 				const config = JSON.parse(state.val as string) as RoomConfig;
+				// normalize metrics ids
+				if (config.metrics && Array.isArray(config.metrics)) {
+					config.metrics = config.metrics.map(m => {
+						const metric = { ...m };
+						if (!metric.id) {
+							metric.id = metric.state || metric.type;
+						}
+						if (!metric.label) {
+							metric.label = metric.type || metric.id;
+						}
+						if (metric.state) {
+							metricStateIds.add(metric.state);
+						}
+						return metric;
+					});
+				}
 				rooms[roomId] = config;
 			} catch (error) {
 				this.adapter.log.warn(`Failed to parse room config for ${roomId}: ${(error as Error).message}`);
 			}
+		}
+
+		// fetch metric values
+		if (metricStateIds.size > 0) {
+			const idArray = Array.from(metricStateIds);
+			await Promise.all(
+				idArray.map(async oid => {
+					try {
+						const state = await this.adapter.getForeignStateAsync(oid);
+						if (state) {
+							for (const room of Object.values(rooms)) {
+								if (room.metrics) {
+									for (const metric of room.metrics) {
+										if (metric.state === oid) {
+											metric.value = state.val;
+											metric.ts = state.ts ? new Date(state.ts).toISOString() : undefined;
+											metric.status =
+												state.val === undefined || state.val === null ? "nodata" : metric.status || "ok";
+										}
+									}
+								}
+							}
+						}
+					} catch (error) {
+						this.adapter.log.warn(`Failed to fetch metric state ${oid}: ${(error as Error).message}`);
+					}
+				}),
+			);
 		}
 
 		return rooms;

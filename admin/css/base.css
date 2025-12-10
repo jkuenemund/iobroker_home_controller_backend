@@ -337,6 +337,12 @@ tr:hover {
 	color: white;
 }
 
+.metrics-timer {
+	font-size: 0.85em;
+	color: #0ea5e9;
+	margin-left: 12px;
+}
+
 /* Action Buttons */
 .action-buttons {
 	display: flex;

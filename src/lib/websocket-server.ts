@@ -19,7 +19,7 @@ import { routeMessage } from "./websocket/routes";
 import { StateChangeManager } from "./websocket/state-change";
 import { SubscriptionRegistry } from "./websocket/subscriptions";
 import { validateIncoming } from "./websocket/codec";
-
+import { RoomMetricsManager } from "./websocket/room-metrics";
 import type { AdapterInterface } from "./websocket/adapter-interface";
 
 // Re-export for convenience
@@ -46,6 +46,7 @@ export class HomeControllerWebSocketServer {
 
 	// Map stateId -> list of capabilities that use it
 	private stateChangeManager: StateChangeManager;
+	private roomMetricsManager: RoomMetricsManager;
 
 	constructor(adapter: AdapterInterface) {
 		this.adapter = adapter;
@@ -62,6 +63,13 @@ export class HomeControllerWebSocketServer {
 			},
 			this.subscriptions,
 		);
+		this.roomMetricsManager = new RoomMetricsManager({
+			adapter: this.adapter,
+			snapshotService: this.snapshotService,
+			clients: this.clients,
+			subscriptions: this.subscriptions,
+			send: (ws: WebSocket, msg: BaseMessage) => this.send(ws, msg),
+		});
 	}
 
 	/**
@@ -101,6 +109,8 @@ export class HomeControllerWebSocketServer {
 
 		// Initial subscription to all known states
 		void this.stateChangeManager.subscribeToAllStates();
+		// Subscribe to room metrics states
+		void this.roomMetricsManager.subscribeToAllMetrics();
 
 		this.wss.on("error", (error: Error) => {
 			this.adapter.log.error(`WebSocket server error: ${error.message}`);
@@ -116,6 +126,7 @@ export class HomeControllerWebSocketServer {
 	 */
 	public handleStateChange(id: string, state: ioBroker.State): void {
 		this.stateChangeManager.handleStateChange(id, state);
+		this.roomMetricsManager.handleStateChange(id, state);
 	}
 
 	/**

@@ -90,6 +90,20 @@ class SubscriptionRegistry {
     }
     return true;
   }
+  shouldDeliverRoom(ws, roomsPayload) {
+    const filters = this.filters.get(ws);
+    if (!filters && this.deps.defaultSubscription === "none") {
+      return false;
+    }
+    if (!filters || Object.keys(filters).length === 0) {
+      return true;
+    }
+    const roomFilter = filters.rooms;
+    if (!roomFilter || roomFilter.length === 0) {
+      return true;
+    }
+    return roomsPayload.some((r) => roomFilter.includes(r.roomId));
+  }
   remove(ws) {
     this.filters.delete(ws);
   }

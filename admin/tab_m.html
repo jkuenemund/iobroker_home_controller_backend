@@ -43,6 +43,7 @@
                 <button class="action-btn export" onclick="exportData()">⬇️ Export</button>
                 <button class="action-btn import" onclick="document.getElementById('importFile').click()">⬆️
                     Import</button>
+                <button class="action-btn reload" onclick="loadData()">🔄 Reload</button>
                 <button class="action-btn add" onclick="openAddDialog()">➕ Add</button>
             </div>
             <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(event)">

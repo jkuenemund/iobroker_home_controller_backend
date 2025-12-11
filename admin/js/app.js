@@ -52,6 +52,12 @@ function switchTab(tabName) {
 
 	if (currentBasePath) {
 		loadData();
+
+		// Subscribe/Unsubscribe based on tab
+		if (tabName === "scenes" && window.socket && currentScenesPath) {
+			console.log("Subscribing to scenes:", currentScenesPath + ".*");
+			window.socket.emit("subscribe", currentScenesPath + ".*");
+		}
 	}
 }
 
@@ -151,7 +157,19 @@ function initSocket() {
 			updateClientsDisplay(state.val);
 		}
 
+		// Handle live updates for current tab
 		if (state) {
+			// Check if update is for current scenes
+			if (currentTab === "scenes" && currentScenesPath && id.startsWith(currentScenesPath)) {
+				console.log("Scene update received:", id);
+				// Debounce reload to prevent flickering
+				if (window.sceneReloadTimeout) clearTimeout(window.sceneReloadTimeout);
+				window.sceneReloadTimeout = setTimeout(() => {
+					loadData();
+				}, 500);
+				return;
+			}
+
 			try {
 				const valEls = document.querySelectorAll(`.live-val[data-oid="${id}"]`);
 				valEls.forEach(el => updateValueDisplay(el, state.val));

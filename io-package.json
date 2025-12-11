@@ -95,7 +95,7 @@
 	"native": {
 		"basePath": "0_userdata.0.home_controller",
 		"wsPort": 8082,
-		"roomMetricsBatchIntervalSec": 60
+		"scenesPath": "cron_scenes.0.jobs"
 	},
 	"objects": [],
 	"instanceObjects": []

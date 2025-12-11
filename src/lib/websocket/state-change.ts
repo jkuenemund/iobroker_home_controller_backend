@@ -31,6 +31,7 @@ export class StateChangeManager {
 	};
 	private readonly queue: StateChangeMessage["payload"][] = [];
 	private flushTimer: NodeJS.Timeout | null = null;
+	private sceneSnapshotTimer: NodeJS.Timeout | null = null;
 	private readonly batchIntervalMs = 200;
 	private eventsThisSecond = 0;
 	private windowStart = Date.now();
@@ -73,19 +74,86 @@ export class StateChangeManager {
 			}
 
 			this.subscriptions.setDeviceRooms(this.deviceRooms);
-			this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} states for real-time updates`);
+			this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} device states for real-time updates`);
+
+			// Subscribe to scene changes
+			await this.subscribeToSceneChanges();
 		} catch (error) {
 			this.deps.adapter.log.error(`Failed to subscribe to states: ${(error as Error).message}`);
 		}
 	}
 
+	private async subscribeToSceneChanges(): Promise<void> {
+		try {
+			const scenesPath = this.deps.adapter.config.scenesPath || 'cron_scenes.0.jobs';
+
+			// Subscribe to all scene states with wildcard
+			// This will catch: cron_scenes.0.jobs.*, cron_scenes.0.jobs.*.status, cron_scenes.0.jobs.*.trigger
+			this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
+
+			this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);
+		} catch (error) {
+			this.deps.adapter.log.error(`Failed to subscribe to scene changes: ${(error as Error).message}`);
+		}
+	}
+
 	public handleStateChange(id: string, state: ioBroker.State): void {
+		// Check if it's a scene state change
+		const scenesPath = this.deps.adapter.config.scenesPath || 'cron_scenes.0.jobs';
+		if (id.startsWith(scenesPath)) {
+			this.handleSceneStateChange(id, state);
+			return;
+		}
+
+		// Handle device state changes
 		const affected = this.stateMap.get(id);
 		if (affected && affected.length > 0) {
 			for (const item of affected) {
 				this.enqueueStateChange(item.deviceId, item.capability, id, state.val, state.ts);
 			}
 		}
+	}
+
+	private handleSceneStateChange(id: string, state: ioBroker.State): void {
+		// Ignore .trigger states (they're just momentary triggers)
+		if (id.endsWith('.trigger')) {
+			return;
+		}
+
+		this.deps.adapter.log.debug(`Scene state changed: ${id}`);
+
+		// Send updated snapshot to all clients
+		this.sendSceneSnapshot();
+	}
+
+	private sendSceneSnapshot(): void {
+		// Debounce: only send snapshot once even if multiple scene states change
+		if (this.sceneSnapshotTimer) {
+			return; // Already scheduled
+		}
+
+		this.sceneSnapshotTimer = setTimeout(async () => {
+			this.sceneSnapshotTimer = null;
+
+			try {
+				const scenes = await this.deps.snapshotService.getScenes();
+
+				const message = {
+					type: 'snapshot',
+					payload: {
+						scenes,
+					},
+				};
+
+				for (const ws of this.deps.clients.keys()) {
+					this.deps.send(ws, message);
+				}
+
+				this.deps.adapter.log.debug(`Sent scene snapshot to ${this.deps.clients.size} clients`);
+			} catch (error) {
+				this.deps.adapter.log.error(`Failed to send scene snapshot: ${(error as Error).message}`);
+			}
+		}, 500); // 500ms debounce
 	}
 
 	private enqueueStateChange(deviceId: string, capability: string, stateId: string, value: any, ts: number): void {

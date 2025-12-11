@@ -13,9 +13,6 @@ interface RoomMetricsDeps {
 		};
 		subscribeForeignStates: (pattern: string) => void;
 		getForeignStateAsync: (id: string) => Promise<ioBroker.State | null | undefined>;
-		config: {
-			roomMetricsBatchIntervalSec?: number;
-		};
 	};
 	snapshotService: SnapshotService;
 	clients: Map<WebSocket, ConnectedClient>;
@@ -34,15 +31,9 @@ interface MetricRef {
 export class RoomMetricsManager {
 	private readonly deps: RoomMetricsDeps;
 	private readonly stateToMetric: Map<string, MetricRef> = new Map();
-	private readonly buffer: Map<string, Map<string, { value: unknown; ts: string; status?: string; unit?: string; label?: string; type?: string }>> =
-		new Map();
-	private flushTimer: NodeJS.Timeout | null = null;
-	private readonly batchIntervalMs: number;
 
 	constructor(deps: RoomMetricsDeps) {
 		this.deps = deps;
-		const cfgSec = deps.adapter.config.roomMetricsBatchIntervalSec;
-		this.batchIntervalMs = cfgSec && cfgSec > 0 ? cfgSec * 1000 : 60_000;
 	}
 
 	public async subscribeToAllMetrics(): Promise<void> {
@@ -81,76 +72,28 @@ export class RoomMetricsManager {
 	public handleStateChange(id: string, state: ioBroker.State): void {
 		const ref = this.stateToMetric.get(id);
 		if (!ref) return;
+
+		// Prepare metric data
 		const ts = state.ts ? new Date(state.ts).toISOString() : new Date().toISOString();
 		const status = state.val === undefined || state.val === null ? "nodata" : "ok";
 
-		let roomEntry = this.buffer.get(ref.roomId);
-		if (!roomEntry) {
-			roomEntry = new Map();
-			this.buffer.set(ref.roomId, roomEntry);
-		}
-		roomEntry.set(ref.metricId, {
+		// Create message payload for this single metric update
+		const metricData = {
+			id: ref.metricId,
 			value: state.val,
 			ts,
 			status,
 			unit: ref.unit,
 			label: ref.label,
 			type: ref.type,
-		});
+		};
 
-		if (!this.flushTimer) {
-			this.flushTimer = setTimeout(() => this.flush(), this.batchIntervalMs);
-		}
-	}
-
-	private flush(): void {
-		this.flushTimer = null;
-		if (this.buffer.size === 0) {
-			return;
-		}
-
-		const roomsPayload: Array<{
-			roomId: string;
-			metrics: Array<{
-				id: string;
-				value: unknown;
-				ts: string;
-				status?: string;
-				unit?: string;
-				label?: string;
-				type?: string;
-			}>;
-		}> = [];
-		for (const [roomId, metricsMap] of this.buffer.entries()) {
-			const metrics: Array<{
-				id: string;
-				value: unknown;
-				ts: string;
-				status?: string;
-				unit?: string;
-				label?: string;
-				type?: string;
-			}> = [];
-			for (const [metricId, data] of metricsMap.entries()) {
-				metrics.push({
-					id: metricId,
-					value: data.value,
-					ts: data.ts,
-					status: data.status as any,
-					unit: data.unit,
-					label: data.label,
-					type: data.type,
-				});
-			}
-			if (metrics.length > 0) {
-				roomsPayload.push({ roomId, metrics });
-			}
-		}
-
-		if (roomsPayload.length === 0) {
-			this.buffer.clear();
-			return;
-		}
+		const roomsPayload = [
+			{
+				roomId: ref.roomId,
+				metrics: [metricData],
+			},
+		];
 
 		const message: BaseMessage & {
 			type: "roomMetricsUpdateBatch";
@@ -160,13 +103,12 @@ export class RoomMetricsManager {
 			payload: { rooms: roomsPayload },
 		};
 
+		// Send to all subscribed clients immediately
 		for (const ws of this.deps.clients.keys()) {
 			if (this.deps.subscriptions.shouldDeliverRoom(ws, roomsPayload)) {
 				this.deps.send(ws, message);
 			}
 		}
-
-		this.buffer.clear();
 	}
 }
 

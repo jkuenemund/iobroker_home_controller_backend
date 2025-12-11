@@ -534,3 +534,25 @@ tr:hover {
 	background: #d0d0d0;
 }
 
+/* Trigger Button for Scenes */
+.btn-trigger {
+	padding: 6px 12px;
+	border: none;
+	background: #10b981;
+	color: white;
+	cursor: pointer;
+	border-radius: 4px;
+	font-weight: 600;
+	font-size: 0.85em;
+	transition: all 0.2s;
+}
+
+.btn-trigger:hover {
+	background: #059669;
+}
+
+.btn-trigger:disabled {
+	background: #6ee7b7;
+	cursor: not-allowed;
+}
+

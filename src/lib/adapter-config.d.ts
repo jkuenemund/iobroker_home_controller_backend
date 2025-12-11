@@ -6,6 +6,7 @@ declare global {
 		interface AdapterConfig {
 			basePath: string;
 			wsPort: number;
+			scenesPath: string;
 		}
 	}
 }

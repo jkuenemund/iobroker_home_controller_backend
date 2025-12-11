@@ -5,10 +5,8 @@ const tableBody = document.querySelector("#deviceTable tbody");
 const metricsTimerEl = document.getElementById("metricsTimer");
 
 let currentBasePath = "";
+let currentScenesPath = "";
 let currentTab = "devices";
-let roomMetricsIntervalSec = 60;
-let nextMetricsAt = 0;
-let metricsTimerHandle = null;
 
 const columns = {
 	devices: [
@@ -29,6 +27,17 @@ const columns = {
 		{ key: "metrics", label: "Metrics" },
 		{ key: "details", label: "Details" },
 	],
+	scenes: [
+		{ key: "expand", label: "" },
+		{ key: "id", label: "ID" },
+		{ key: "name", label: "Name" },
+		{ key: "type", label: "Type" },
+		{ key: "active", label: "Active" },
+		{ key: "lastRun", label: "Last Run" },
+		{ key: "nextRun", label: "Next Run" },
+		{ key: "error", label: "Error" },
+		{ key: "trigger", label: "Action" },
+	],
 };
 
 function switchTab(tabName) {
@@ -46,22 +55,7 @@ function switchTab(tabName) {
 	}
 }
 
-function startMetricsCountdown() {
-	if (!metricsTimerEl) return;
-	if (metricsTimerHandle) {
-		clearInterval(metricsTimerHandle);
-	}
-	const tick = () => {
-		if (!nextMetricsAt || nextMetricsAt <= Date.now()) {
-			metricsTimerEl.textContent = `Metrics batch ~ alle ${roomMetricsIntervalSec}s`;
-			return;
-		}
-		const remaining = nextMetricsAt - Date.now();
-		metricsTimerEl.textContent = `Nächster Metrics-Batch in ${formatCountdown(remaining)} (Intervall ${roomMetricsIntervalSec}s)`;
-	};
-	tick();
-	metricsTimerHandle = setInterval(tick, 1000);
-}
+
 
 function buildHeader() {
 	const tableHead = document.querySelector("#deviceTable thead tr");
@@ -74,7 +68,11 @@ function buildHeader() {
 }
 
 function loadData() {
-	const targetPath = `${currentBasePath}.${currentTab}`;
+	// Use scenesPath for scenes tab, basePath for devices/rooms
+	const targetPath = currentTab === "scenes"
+		? currentScenesPath
+		: `${currentBasePath}.${currentTab}`;
+
 	console.log("Loading data from:", targetPath);
 
 	buildHeader();
@@ -97,11 +95,13 @@ function loadData() {
 
 		if (currentTab === "devices") {
 			renderDeviceRows(states, targetPath, columns, tableBody);
-		} else {
+		} else if (currentTab === "rooms") {
 			renderRoomRows(states, targetPath, columns, tableBody, currentTab);
 			if (window.subscribeMetricStates) {
 				window.subscribeMetricStates();
 			}
+		} else if (currentTab === "scenes") {
+			renderSceneRows(states, targetPath, columns, tableBody);
 		}
 	});
 }
@@ -118,13 +118,9 @@ function initSocket() {
 		socket.emit("getObject", "system.adapter.home_controller_backend.0", (err, obj) => {
 			if (!err && obj && obj.native) {
 				currentBasePath = obj.native.basePath;
-				if (obj.native.roomMetricsBatchIntervalSec && obj.native.roomMetricsBatchIntervalSec > 0) {
-					roomMetricsIntervalSec = obj.native.roomMetricsBatchIntervalSec;
-				}
+				currentScenesPath = obj.native.scenesPath || "cron_scenes.0.jobs";
 				console.log("Adapter config loaded:", obj.native);
 				basePathEl.textContent = currentBasePath || "Not set";
-				nextMetricsAt = Date.now() + roomMetricsIntervalSec * 1000;
-				startMetricsCountdown();
 
 				if (currentBasePath) {
 					loadData();
@@ -171,8 +167,6 @@ function initSocket() {
 	socket.on("roomMetricsUpdateBatch", message => {
 		if (message?.payload?.rooms) {
 			applyRoomMetricsUpdateBatch(message.payload);
-			nextMetricsAt = Date.now() + roomMetricsIntervalSec * 1000;
-			startMetricsCountdown();
 		}
 	});
 }

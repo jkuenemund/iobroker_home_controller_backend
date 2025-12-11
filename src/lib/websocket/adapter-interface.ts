@@ -12,12 +12,12 @@ export type AdapterInterface = {
 	config: {
 		basePath: string;
 		wsPort: number;
+		scenesPath: string;
 		authMode?: "none" | "basic";
 		authUser?: string;
 		authPassword?: string;
 		defaultSubscription?: "all" | "none";
 		maxEventsPerSecond?: number;
-	roomMetricsBatchIntervalSec?: number;
 	};
 	getForeignStatesAsync: ioBroker.Adapter["getForeignStatesAsync"];
 	getForeignStateAsync: ioBroker.Adapter["getForeignStateAsync"];

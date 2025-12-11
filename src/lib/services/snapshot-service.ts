@@ -1,6 +1,6 @@
 /* eslint-disable jsdoc/require-param, jsdoc/require-jsdoc */
 
-import type { DeviceConfig, RoomConfig, SnapshotPayload } from "../websocket/types";
+import type { DeviceConfig, RoomConfig, SceneConfig, SnapshotPayload } from "../websocket/types";
 
 /**
  * Minimal adapter interface needed for snapshot building.
@@ -14,6 +14,7 @@ export interface SnapshotAdapterDeps {
 	};
 	config: {
 		basePath: string;
+		scenesPath: string;
 	};
 	getForeignStatesAsync: (pattern: string) => Promise<Record<string, ioBroker.State | null | undefined>>;
 	getForeignStateAsync: (id: string) => Promise<ioBroker.State | null | undefined>;
@@ -28,11 +29,11 @@ export class SnapshotService {
 	}
 
 	/**
-	 * Build snapshot (devices + rooms) with provided seq reference
+	 * Build snapshot (devices + rooms + scenes) with provided seq reference
 	 */
 	public async buildSnapshot(seq: number): Promise<SnapshotPayload> {
-		const [devices, rooms] = await Promise.all([this.getDevices(), this.getRooms()]);
-		return { devices, rooms, seq };
+		const [devices, rooms, scenes] = await Promise.all([this.getDevices(), this.getRooms(), this.getScenes()]);
+		return { devices, rooms, scenes, seq };
 	}
 
 	public async getDevices(): Promise<Record<string, DeviceConfig>> {
@@ -41,6 +42,10 @@ export class SnapshotService {
 
 	public async getRooms(): Promise<Record<string, RoomConfig>> {
 		return this.fetchRooms();
+	}
+
+	public async getScenes(): Promise<Record<string, SceneConfig>> {
+		return this.fetchScenes();
 	}
 
 	public async validateSetState(
@@ -199,5 +204,83 @@ export class SnapshotService {
 		}
 
 		return rooms;
+	}
+
+	/**
+	 * Fetch all scenes from cron_scenes adapter
+	 */
+	private async fetchScenes(): Promise<Record<string, SceneConfig>> {
+		const scenesPath = this.adapter.config.scenesPath || "cron_scenes.0.jobs";
+		const pattern = `${scenesPath}.*`;
+
+		const states = await this.adapter.getForeignStatesAsync(pattern);
+		const scenes: Record<string, SceneConfig> = {};
+		const statusMap: Record<string, any> = {};
+
+		// Parse states - separate config and status states
+		for (const [id, state] of Object.entries(states)) {
+			if (!state?.val) {
+				continue;
+			}
+
+			const relativeId = id.substring(scenesPath.length + 1);
+
+			// Skip .trigger states
+			if (relativeId.endsWith(".trigger")) {
+				continue;
+			}
+
+			// Parse .status states
+			if (relativeId.endsWith(".status")) {
+				const sceneId = relativeId.slice(0, -7); // Remove '.status'
+				try {
+					statusMap[sceneId] = typeof state.val === "string" ? JSON.parse(state.val) : state.val;
+				} catch (error) {
+					this.adapter.log.warn(`Failed to parse status for scene ${sceneId}: ${(error as Error).message}`);
+				}
+				continue;
+			}
+
+			// Main scene config state (no dot in relativeId means it's a root state)
+			if (!relativeId.includes(".")) {
+				const sceneId = relativeId;
+				try {
+					const config = typeof state.val === "string" ? JSON.parse(state.val) : state.val;
+
+					// Build SceneConfig from cron_scenes config
+					scenes[sceneId] = {
+						name: config.name || sceneId,
+						type: config.type || "recurring",
+						active: config.active || false,
+						cron: config.cron,
+						targets: (config.targets || []).map((t: any) => ({
+							id: t.id,
+							value: t.value,
+							type: t.type,
+							description: t.description,
+							delay: t.delay,
+						})),
+						triggerState: config.triggerState,
+						triggerValue: config.triggerValue,
+						debounce: config.debounce,
+					};
+				} catch (error) {
+					this.adapter.log.warn(`Failed to parse scene config for ${sceneId}: ${(error as Error).message}`);
+				}
+			}
+		}
+
+		// Merge status information into scenes
+		for (const [sceneId, scene] of Object.entries(scenes)) {
+			const status = statusMap[sceneId];
+			if (status) {
+				scene.lastRun = status.lastRun;
+				scene.nextRun = status.nextRun;
+				scene.hasError = !!status.error;
+				scene.errorMessage = status.error;
+			}
+		}
+
+		return scenes;
 	}
 }

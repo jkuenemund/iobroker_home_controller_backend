@@ -29,6 +29,7 @@ class StateChangeManager {
   ctxForSubs;
   queue = [];
   flushTimer = null;
+  sceneSnapshotTimer = null;
   batchIntervalMs = 200;
   eventsThisSecond = 0;
   windowStart = Date.now();
@@ -65,18 +66,63 @@ class StateChangeManager {
         this.deps.adapter.subscribeForeignStates(oid);
       }
       this.subscriptions.setDeviceRooms(this.deviceRooms);
-      this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} states for real-time updates`);
+      this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} device states for real-time updates`);
+      await this.subscribeToSceneChanges();
     } catch (error) {
       this.deps.adapter.log.error(`Failed to subscribe to states: ${error.message}`);
     }
   }
+  async subscribeToSceneChanges() {
+    try {
+      const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
+      this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
+      this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);
+    } catch (error) {
+      this.deps.adapter.log.error(`Failed to subscribe to scene changes: ${error.message}`);
+    }
+  }
   handleStateChange(id, state) {
+    const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
+    if (id.startsWith(scenesPath)) {
+      this.handleSceneStateChange(id, state);
+      return;
+    }
     const affected = this.stateMap.get(id);
     if (affected && affected.length > 0) {
       for (const item of affected) {
         this.enqueueStateChange(item.deviceId, item.capability, id, state.val, state.ts);
       }
     }
+  }
+  handleSceneStateChange(id, state) {
+    if (id.endsWith(".trigger")) {
+      return;
+    }
+    this.deps.adapter.log.debug(`Scene state changed: ${id}`);
+    this.sendSceneSnapshot();
+  }
+  sendSceneSnapshot() {
+    if (this.sceneSnapshotTimer) {
+      return;
+    }
+    this.sceneSnapshotTimer = setTimeout(async () => {
+      this.sceneSnapshotTimer = null;
+      try {
+        const scenes = await this.deps.snapshotService.getScenes();
+        const message = {
+          type: "snapshot",
+          payload: {
+            scenes
+          }
+        };
+        for (const ws of this.deps.clients.keys()) {
+          this.deps.send(ws, message);
+        }
+        this.deps.adapter.log.debug(`Sent scene snapshot to ${this.deps.clients.size} clients`);
+      } catch (error) {
+        this.deps.adapter.log.error(`Failed to send scene snapshot: ${error.message}`);
+      }
+    }, 500);
   }
   enqueueStateChange(deviceId, capability, stateId, value, ts) {
     this.countEvent();

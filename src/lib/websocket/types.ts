@@ -212,9 +212,39 @@ export interface RoomsResponse extends BaseMessage {
 	};
 }
 
+/**
+ * Scene configuration (from cron_scenes adapter)
+ */
+export interface SceneConfig {
+	name: string;
+	type: "recurring" | "once" | "manual" | "state";
+	active: boolean;
+	cron?: string;
+	targets: SceneTarget[];
+	lastRun?: string;
+	nextRun?: string;
+	hasError?: boolean;
+	errorMessage?: string;
+	triggerState?: string;
+	triggerValue?: unknown;
+	debounce?: number;
+}
+
+/**
+ * Scene target (simplified from cron_scenes CronTarget)
+ */
+export interface SceneTarget {
+	id: string;
+	value: unknown;
+	type?: "value" | "state" | "expression";
+	description?: string;
+	delay?: number;
+}
+
 export interface SnapshotPayload {
 	devices: Record<string, DeviceConfig>;
 	rooms: Record<string, RoomConfig>;
+	scenes: Record<string, SceneConfig>;
 	seq: number;
 }
 

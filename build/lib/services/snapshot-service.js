@@ -27,17 +27,20 @@ class SnapshotService {
     this.adapter = adapter;
   }
   /**
-   * Build snapshot (devices + rooms) with provided seq reference
+   * Build snapshot (devices + rooms + scenes) with provided seq reference
    */
   async buildSnapshot(seq) {
-    const [devices, rooms] = await Promise.all([this.getDevices(), this.getRooms()]);
-    return { devices, rooms, seq };
+    const [devices, rooms, scenes] = await Promise.all([this.getDevices(), this.getRooms(), this.getScenes()]);
+    return { devices, rooms, scenes, seq };
   }
   async getDevices() {
     return this.fetchDevices();
   }
   async getRooms() {
     return this.fetchRooms();
+  }
+  async getScenes() {
+    return this.fetchScenes();
   }
   async validateSetState(deviceId, capability, stateId) {
     var _a;
@@ -169,6 +172,68 @@ class SnapshotService {
       );
     }
     return rooms;
+  }
+  /**
+   * Fetch all scenes from cron_scenes adapter
+   */
+  async fetchScenes() {
+    const scenesPath = this.adapter.config.scenesPath || "cron_scenes.0.jobs";
+    const pattern = `${scenesPath}.*`;
+    const states = await this.adapter.getForeignStatesAsync(pattern);
+    const scenes = {};
+    const statusMap = {};
+    for (const [id, state] of Object.entries(states)) {
+      if (!(state == null ? void 0 : state.val)) {
+        continue;
+      }
+      const relativeId = id.substring(scenesPath.length + 1);
+      if (relativeId.endsWith(".trigger")) {
+        continue;
+      }
+      if (relativeId.endsWith(".status")) {
+        const sceneId = relativeId.slice(0, -7);
+        try {
+          statusMap[sceneId] = typeof state.val === "string" ? JSON.parse(state.val) : state.val;
+        } catch (error) {
+          this.adapter.log.warn(`Failed to parse status for scene ${sceneId}: ${error.message}`);
+        }
+        continue;
+      }
+      if (!relativeId.includes(".")) {
+        const sceneId = relativeId;
+        try {
+          const config = typeof state.val === "string" ? JSON.parse(state.val) : state.val;
+          scenes[sceneId] = {
+            name: config.name || sceneId,
+            type: config.type || "recurring",
+            active: config.active || false,
+            cron: config.cron,
+            targets: (config.targets || []).map((t) => ({
+              id: t.id,
+              value: t.value,
+              type: t.type,
+              description: t.description,
+              delay: t.delay
+            })),
+            triggerState: config.triggerState,
+            triggerValue: config.triggerValue,
+            debounce: config.debounce
+          };
+        } catch (error) {
+          this.adapter.log.warn(`Failed to parse scene config for ${sceneId}: ${error.message}`);
+        }
+      }
+    }
+    for (const [sceneId, scene] of Object.entries(scenes)) {
+      const status = statusMap[sceneId];
+      if (status) {
+        scene.lastRun = status.lastRun;
+        scene.nextRun = status.nextRun;
+        scene.hasError = !!status.error;
+        scene.errorMessage = status.error;
+      }
+    }
+    return scenes;
   }
 }
 // Annotate the CommonJS export names for ESM import in node:

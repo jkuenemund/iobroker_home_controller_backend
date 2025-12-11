@@ -19,13 +19,16 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var handlers_exports = {};
 __export(handlers_exports, {
   applySubscriptions: () => applySubscriptions,
+  handleDeleteScene: () => handleDeleteScene,
   handleGetDevices: () => handleGetDevices,
   handleGetRooms: () => handleGetRooms,
   handleGetSnapshot: () => handleGetSnapshot,
   handleHelp: () => handleHelp,
   handleRegister: () => handleRegister,
+  handleSaveScene: () => handleSaveScene,
   handleSetState: () => handleSetState,
-  handleSubscribe: () => handleSubscribe
+  handleSubscribe: () => handleSubscribe,
+  handleTriggerScene: () => handleTriggerScene
 });
 module.exports = __toCommonJS(handlers_exports);
 var import_uuid = require("uuid");
@@ -277,6 +280,96 @@ async function handleSetState(ctx, ws, message) {
     );
   }
 }
+async function handleTriggerScene(ctx, ws, message) {
+  const client = ctx.clients.get(ws);
+  if (!(client == null ? void 0 : client.isRegistered)) {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
+    return;
+  }
+  const { sceneId } = message.payload;
+  if (!sceneId || typeof sceneId !== "string") {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INVALID_PAYLOAD, "Invalid sceneId");
+    return;
+  }
+  try {
+    const triggerPath = `cron_scenes.0.jobs.${sceneId}.trigger`;
+    await ctx.adapter.setForeignStateAsync(triggerPath, true, false);
+    ctx.send(ws, { type: "ack", id: message.id });
+    ctx.adapter.log.info(`Triggered scene ${sceneId} via WebSocket from ${client.name}`);
+  } catch (error) {
+    ctx.sendError(
+      ws,
+      message.id,
+      import_types.ErrorCodes.INTERNAL_ERROR,
+      `Failed to trigger scene: ${error.message}`
+    );
+  }
+}
+async function handleSaveScene(ctx, ws, message) {
+  const client = ctx.clients.get(ws);
+  if (!(client == null ? void 0 : client.isRegistered)) {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
+    return;
+  }
+  const { sceneId, config } = message.payload;
+  if (!sceneId || !config) {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INVALID_PAYLOAD, "Missing sceneId or config");
+    return;
+  }
+  try {
+    const statePath = `cron_scenes.0.jobs.${message.payload.sceneId}`;
+    await ctx.adapter.extendForeignObjectAsync(statePath, {
+      type: "state",
+      common: {
+        name: message.payload.sceneId,
+        // Using ID as name initially
+        type: "string",
+        // JSON content is stored as string
+        role: "json",
+        // Role for JSON content
+        read: true,
+        write: true,
+        desc: "Created by home_controller"
+      },
+      native: {}
+    });
+    await ctx.adapter.setForeignStateAsync(statePath, JSON.stringify(config), true);
+    ctx.send(ws, { type: "ack", id: message.id });
+    ctx.adapter.log.info(`Saved scene ${sceneId} via WebSocket from ${client.name}`);
+  } catch (error) {
+    ctx.sendError(
+      ws,
+      message.id,
+      import_types.ErrorCodes.INTERNAL_ERROR,
+      `Failed to save scene: ${error.message}`
+    );
+  }
+}
+async function handleDeleteScene(ctx, ws, message) {
+  const client = ctx.clients.get(ws);
+  if (!(client == null ? void 0 : client.isRegistered)) {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.NOT_REGISTERED, "Client must register first");
+    return;
+  }
+  const { sceneId } = message.payload;
+  if (!sceneId) {
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INVALID_PAYLOAD, "Missing sceneId");
+    return;
+  }
+  try {
+    const objectPath = `cron_scenes.0.jobs.${sceneId}`;
+    await ctx.adapter.delForeignObjectAsync(objectPath);
+    ctx.send(ws, { type: "ack", id: message.id });
+    ctx.adapter.log.info(`Deleted scene ${sceneId} via WebSocket from ${client.name}`);
+  } catch (error) {
+    ctx.sendError(
+      ws,
+      message.id,
+      import_types.ErrorCodes.INTERNAL_ERROR,
+      `Failed to delete scene: ${error.message}`
+    );
+  }
+}
 async function sendInitialSnapshot(ctx, ws) {
   const client = ctx.clients.get(ws);
   if (!(client == null ? void 0 : client.isRegistered)) {
@@ -298,12 +391,15 @@ async function sendInitialSnapshot(ctx, ws) {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   applySubscriptions,
+  handleDeleteScene,
   handleGetDevices,
   handleGetRooms,
   handleGetSnapshot,
   handleHelp,
   handleRegister,
+  handleSaveScene,
   handleSetState,
-  handleSubscribe
+  handleSubscribe,
+  handleTriggerScene
 });
 //# sourceMappingURL=handlers.js.map

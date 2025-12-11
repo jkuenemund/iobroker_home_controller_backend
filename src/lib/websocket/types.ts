@@ -114,6 +114,29 @@ export interface SetStateRequest extends BaseMessage {
 	};
 }
 
+
+export interface TriggerSceneRequest extends BaseMessage {
+	type: "triggerScene";
+	payload: {
+		sceneId: string;
+	};
+}
+
+export interface SaveSceneRequest extends BaseMessage {
+	type: "saveScene";
+	payload: {
+		sceneId: string;
+		config: SceneConfig;
+	};
+}
+
+export interface DeleteSceneRequest extends BaseMessage {
+	type: "deleteScene";
+	payload: {
+		sceneId: string;
+	};
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -358,7 +381,11 @@ export type ClientMessage =
 	| HelpRequest
 	| SubscribeRequest
 	| UnsubscribeRequest
-	| SetStateRequest;
+	| SetStateRequest
+	| SetStateRequest
+	| TriggerSceneRequest
+	| SaveSceneRequest
+	| DeleteSceneRequest;
 
 /**
  * All possible server → client message types

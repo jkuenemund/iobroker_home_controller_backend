@@ -49,6 +49,15 @@ function routeMessage(ctx, ws, message) {
     case "setState":
       void (0, import_handlers.handleSetState)(ctx, ws, message);
       return;
+    case "triggerScene":
+      void (0, import_handlers.handleTriggerScene)(ctx, ws, message);
+      return;
+    case "saveScene":
+      void (0, import_handlers.handleSaveScene)(ctx, ws, message);
+      return;
+    case "deleteScene":
+      void (0, import_handlers.handleDeleteScene)(ctx, ws, message);
+      return;
     default:
       ctx.sendError(ws, message.id, import_types.ErrorCodes.UNKNOWN_TYPE, `Unknown message type: ${message.type}`);
   }

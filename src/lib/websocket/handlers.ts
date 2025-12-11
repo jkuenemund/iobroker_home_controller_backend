@@ -16,6 +16,9 @@ import type {
 	UnsubscribeRequest,
 	StateChangeMessage,
 	SetStateRequest,
+	TriggerSceneRequest,
+	SaveSceneRequest,
+	DeleteSceneRequest,
 } from "./types";
 import { ErrorCodes } from "./types";
 import type { SnapshotService } from "../services/snapshot-service";
@@ -23,7 +26,7 @@ import type { SubscriptionRegistry } from "./subscriptions";
 import type { AdapterInterface } from "./adapter-interface";
 
 export interface HandlerContext {
-	adapter: Pick<AdapterInterface, "log" | "config" | "setForeignStateAsync">;
+	adapter: Pick<AdapterInterface, "log" | "config" | "setForeignStateAsync" | "delForeignObjectAsync" | "extendForeignObjectAsync">;
 	clients: Map<WebSocket, ConnectedClient>;
 	snapshotService: SnapshotService;
 	nextSeq: () => number;
@@ -315,6 +318,126 @@ export async function handleSetState(ctx: HandlerContext, ws: WebSocket, message
 			message.id,
 			ErrorCodes.INTERNAL_ERROR,
 			`Failed to set state: ${(error as Error).message}`,
+		);
+	}
+}
+
+export async function handleTriggerScene(
+	ctx: HandlerContext,
+	ws: WebSocket,
+	message: TriggerSceneRequest,
+): Promise<void> {
+	const client = ctx.clients.get(ws);
+	if (!client?.isRegistered) {
+		ctx.sendError(ws, message.id, ErrorCodes.NOT_REGISTERED, "Client must register first");
+		return;
+	}
+
+	const { sceneId } = message.payload;
+	if (!sceneId || typeof sceneId !== "string") {
+		ctx.sendError(ws, message.id, ErrorCodes.INVALID_PAYLOAD, "Invalid sceneId");
+		return;
+	}
+
+	try {
+		// Set trigger state to true
+		const triggerPath = `cron_scenes.0.jobs.${sceneId}.trigger`;
+		// ack=false because the adapter will ack it
+		await ctx.adapter.setForeignStateAsync(triggerPath, true, false);
+
+		// Send acknowledgment
+		ctx.send(ws, { type: "ack", id: message.id });
+		ctx.adapter.log.info(`Triggered scene ${sceneId} via WebSocket from ${client.name}`);
+	} catch (error) {
+		ctx.sendError(
+			ws,
+			message.id,
+			ErrorCodes.INTERNAL_ERROR,
+			`Failed to trigger scene: ${(error as Error).message}`,
+		);
+	}
+}
+
+
+
+export async function handleSaveScene(
+	ctx: HandlerContext,
+	ws: WebSocket,
+	message: SaveSceneRequest,
+): Promise<void> {
+	const client = ctx.clients.get(ws);
+	if (!client?.isRegistered) {
+		ctx.sendError(ws, message.id, ErrorCodes.NOT_REGISTERED, "Client must register first");
+		return;
+	}
+
+	const { sceneId, config } = message.payload;
+	if (!sceneId || !config) {
+		ctx.sendError(ws, message.id, ErrorCodes.INVALID_PAYLOAD, "Missing sceneId or config");
+		return;
+	}
+
+	try {
+		const statePath = `cron_scenes.0.jobs.${message.payload.sceneId}`;
+
+		// Ensure the object exists using extendForeignObjectAsync (creates if not exists, updates if exists)
+		await ctx.adapter.extendForeignObjectAsync(statePath, {
+			type: "state",
+			common: {
+				name: message.payload.sceneId, // Using ID as name initially
+				type: "string", // JSON content is stored as string
+				role: "json", // Role for JSON content
+				read: true,
+				write: true,
+				desc: "Created by home_controller",
+			},
+			native: {},
+		});
+
+		// Save as JSON string
+		await ctx.adapter.setForeignStateAsync(statePath, JSON.stringify(config), true);
+
+		ctx.send(ws, { type: "ack", id: message.id });
+		ctx.adapter.log.info(`Saved scene ${sceneId} via WebSocket from ${client.name}`);
+	} catch (error) {
+		ctx.sendError(
+			ws,
+			message.id,
+			ErrorCodes.INTERNAL_ERROR,
+			`Failed to save scene: ${(error as Error).message}`,
+		);
+	}
+}
+
+export async function handleDeleteScene(
+	ctx: HandlerContext,
+	ws: WebSocket,
+	message: DeleteSceneRequest,
+): Promise<void> {
+	const client = ctx.clients.get(ws);
+	if (!client?.isRegistered) {
+		ctx.sendError(ws, message.id, ErrorCodes.NOT_REGISTERED, "Client must register first");
+		return;
+	}
+
+	const { sceneId } = message.payload;
+	if (!sceneId) {
+		ctx.sendError(ws, message.id, ErrorCodes.INVALID_PAYLOAD, "Missing sceneId");
+		return;
+	}
+
+	try {
+		const objectPath = `cron_scenes.0.jobs.${sceneId}`;
+		await ctx.adapter.delForeignObjectAsync(objectPath);
+
+		ctx.send(ws, { type: "ack", id: message.id });
+		ctx.adapter.log.info(`Deleted scene ${sceneId} via WebSocket from ${client.name}`);
+	} catch (error) {
+		ctx.sendError(
+			ws,
+			message.id,
+			ErrorCodes.INTERNAL_ERROR,
+			`Failed to delete scene: ${(error as Error).message}`,
 		);
 	}
 }

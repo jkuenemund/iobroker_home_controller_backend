@@ -1,7 +1,7 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import type { WebSocket } from "ws";
-import type { BaseMessage, GetRoomsRequest, GetSnapshotRequest, HelpRequest } from "./types";
+import type { BaseMessage, GetRoomsRequest, GetSnapshotRequest, HelpRequest, TriggerSceneRequest } from "./types";
 import { ErrorCodes } from "./types";
 import {
 	handleGetDevices,
@@ -11,6 +11,9 @@ import {
 	handleRegister,
 	handleSubscribe,
 	handleSetState,
+	handleTriggerScene,
+	handleSaveScene,
+	handleDeleteScene,
 } from "./handlers";
 import type { HandlerContext } from "./handlers";
 
@@ -39,6 +42,15 @@ export function routeMessage(ctx: HandlerContext, ws: WebSocket, message: BaseMe
 			return;
 		case "setState":
 			void handleSetState(ctx, ws, message as any);
+			return;
+		case "triggerScene":
+			void handleTriggerScene(ctx, ws, message as TriggerSceneRequest);
+			return;
+		case "saveScene":
+			void handleSaveScene(ctx, ws, message as any);
+			return;
+		case "deleteScene":
+			void handleDeleteScene(ctx, ws, message as any);
 			return;
 		default:
 			ctx.sendError(ws, message.id, ErrorCodes.UNKNOWN_TYPE, `Unknown message type: ${message.type}`);

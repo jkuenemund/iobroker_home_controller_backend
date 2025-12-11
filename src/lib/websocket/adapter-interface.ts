@@ -22,6 +22,8 @@ export type AdapterInterface = {
 	getForeignStatesAsync: ioBroker.Adapter["getForeignStatesAsync"];
 	getForeignStateAsync: ioBroker.Adapter["getForeignStateAsync"];
 	subscribeForeignStates: ioBroker.Adapter["subscribeForeignStates"];
+	delForeignObjectAsync: ioBroker.Adapter["delForeignObjectAsync"];
+	extendForeignObjectAsync: ioBroker.Adapter["extendForeignObjectAsync"];
 	setForeignStateAsync: (
 		id: string,
 		state: ioBroker.SettableState | ioBroker.State | ioBroker.StateValue,

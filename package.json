@@ -25,7 +25,8 @@
   "dependencies": {
     "@iobroker/adapter-core": "^3.3.2",
     "ws": "^8.18.3",
-    "ajv": "^8.17.1"
+    "ajv": "^8.17.1",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@alcalzone/release-script": "^5.0.0",

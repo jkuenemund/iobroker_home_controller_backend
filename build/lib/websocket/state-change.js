@@ -67,12 +67,12 @@ class StateChangeManager {
       }
       this.subscriptions.setDeviceRooms(this.deviceRooms);
       this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} device states for real-time updates`);
-      await this.subscribeToSceneChanges();
+      this.subscribeToSceneChanges();
     } catch (error) {
       this.deps.adapter.log.error(`Failed to subscribe to states: ${error.message}`);
     }
   }
-  async subscribeToSceneChanges() {
+  subscribeToSceneChanges() {
     const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
     this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
     this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);

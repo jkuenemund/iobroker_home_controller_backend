@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "home_controller_backend",
-    "version": "0.0.2-alpha.0",
+    "version": "0.0.2-beta.0",
     "news": {
+      "0.0.2-beta.0": {
+        "en": "fix lint errors",
+        "de": "lint fehler beheben",
+        "ru": "исправить ошибки lint",
+        "pt": "corrigir erros no lint",
+        "nl": "fix pluisfouten",
+        "fr": "corriger les erreurs de linte",
+        "it": "correggere gli errori di lintuizione",
+        "es": "corregir errores lint",
+        "pl": "naprawić błędy lintu",
+        "uk": "виправлено помилки в розмітці",
+        "zh-cn": "修正错误"
+      },
       "0.0.2-alpha.0": {
         "en": "add token-based WebSocket auth, optional TLS, and `/token` issuance endpoint",
         "de": "webSocket Auth, optional TLS und `/token` Ausgabeendpunkt hinzufügen",

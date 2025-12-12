@@ -24,9 +24,17 @@ module.exports = __toCommonJS(room_metrics_exports);
 class RoomMetricsManager {
   deps;
   stateToMetric = /* @__PURE__ */ new Map();
+  /**
+   * Create a new RoomMetricsManager instance
+   *
+   * @param deps - Dependencies required for room metrics management
+   */
   constructor(deps) {
     this.deps = deps;
   }
+  /**
+   * Subscribe to all room metric states from the snapshot service
+   */
   async subscribeToAllMetrics() {
     try {
       const rooms = await this.deps.snapshotService.getRooms();
@@ -60,6 +68,12 @@ class RoomMetricsManager {
       this.deps.adapter.log.error(`Failed to subscribe to room metrics: ${error.message}`);
     }
   }
+  /**
+   * Handle state change for a room metric
+   *
+   * @param id - State ID that changed
+   * @param state - New state value
+   */
   handleStateChange(id, state) {
     const ref = this.stateToMetric.get(id);
     if (!ref) {

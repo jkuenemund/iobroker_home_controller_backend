@@ -55,13 +55,11 @@ function switchTab(tabName) {
 
 		// Subscribe/Unsubscribe based on tab
 		if (tabName === "scenes" && window.socket && currentScenesPath) {
-			console.log("Subscribing to scenes:", currentScenesPath + ".*");
-			window.socket.emit("subscribe", currentScenesPath + ".*");
+			console.log("Subscribing to scenes:", `${currentScenesPath}.*`);
+			window.socket.emit("subscribe", `${currentScenesPath}.*`);
 		}
 	}
 }
-
-
 
 function buildHeader() {
 	const tableHead = document.querySelector("#deviceTable thead tr");
@@ -75,16 +73,14 @@ function buildHeader() {
 
 function loadData() {
 	// Use scenesPath for scenes tab, basePath for devices/rooms
-	const targetPath = currentTab === "scenes"
-		? currentScenesPath
-		: `${currentBasePath}.${currentTab}`;
+	const targetPath = currentTab === "scenes" ? currentScenesPath : `${currentBasePath}.${currentTab}`;
 
 	console.log("Loading data from:", targetPath);
 
 	buildHeader();
 	tableBody.innerHTML = `<tr><td colspan="${columns[currentTab].length}" style="text-align: center; color: #666;">Loading ${currentTab}...</td></tr>`;
 
-	socket.emit("getStates", targetPath + ".*", (err, states) => {
+	socket.emit("getStates", `${targetPath}.*`, (err, states) => {
 		if (err) {
 			console.error("Error fetching states:", err);
 			tableBody.innerHTML = `<tr><td colspan="${columns[currentTab].length}" style="color: red;">Error: ${err}</td></tr>`;
@@ -163,7 +159,9 @@ function initSocket() {
 			if (currentTab === "scenes" && currentScenesPath && id.startsWith(currentScenesPath)) {
 				console.log("Scene update received:", id);
 				// Debounce reload to prevent flickering
-				if (window.sceneReloadTimeout) clearTimeout(window.sceneReloadTimeout);
+				if (window.sceneReloadTimeout) {
+					clearTimeout(window.sceneReloadTimeout);
+				}
 				window.sceneReloadTimeout = setTimeout(() => {
 					loadData();
 				}, 500);
@@ -202,4 +200,3 @@ document.addEventListener("DOMContentLoaded", () => {
 		});
 	}
 });
-

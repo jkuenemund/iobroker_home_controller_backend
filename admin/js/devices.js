@@ -2,7 +2,7 @@ function renderDeviceRows(states, targetPath, columns, tableBody) {
 	Object.keys(states)
 		.sort()
 		.forEach(id => {
-			const relativeId = id.startsWith(targetPath + ".") ? id.substring(targetPath.length + 1) : id;
+			const relativeId = id.startsWith(`${targetPath}.`) ? id.substring(targetPath.length + 1) : id;
 			const val = states[id] ? states[id].val : null;
 
 			let data = {};
@@ -78,11 +78,21 @@ function renderDeviceRows(states, targetPath, columns, tableBody) {
 						const propsSpan = document.createElement("div");
 						propsSpan.className = "capability-props";
 						const props = [];
-						if (cap.description) props.push(cap.description);
-						if (cap.min_value !== undefined) props.push(`min: ${cap.min_value}`);
-						if (cap.max_value !== undefined) props.push(`max: ${cap.max_value}`);
-						if (cap.unit) props.push(`unit: ${cap.unit}`);
-						if (cap.inverted) props.push("inverted");
+						if (cap.description) {
+							props.push(cap.description);
+						}
+						if (cap.min_value !== undefined) {
+							props.push(`min: ${cap.min_value}`);
+						}
+						if (cap.max_value !== undefined) {
+							props.push(`max: ${cap.max_value}`);
+						}
+						if (cap.unit) {
+							props.push(`unit: ${cap.unit}`);
+						}
+						if (cap.inverted) {
+							props.push("inverted");
+						}
 						propsSpan.textContent = props.length > 0 ? props.join(", ") : "-";
 
 						capItem.appendChild(typeSpan);
@@ -134,4 +144,3 @@ function toggleCapabilities(iconElement) {
 		});
 	}
 }
-

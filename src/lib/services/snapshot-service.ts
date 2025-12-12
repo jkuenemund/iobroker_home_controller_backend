@@ -190,7 +190,9 @@ export class SnapshotService {
 											metric.value = state.val;
 											metric.ts = state.ts ? new Date(state.ts).toISOString() : undefined;
 											metric.status =
-												state.val === undefined || state.val === null ? "nodata" : metric.status || "ok";
+												state.val === undefined || state.val === null
+													? "nodata"
+													: metric.status || "ok";
 										}
 									}
 								}

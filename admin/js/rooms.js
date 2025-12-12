@@ -10,8 +10,12 @@ function normalizeRoomData(relativeId, data, currentTab) {
 	// Derive ids/names for metrics if missing
 	metricsArray = metricsArray.map(m => {
 		const metric = { ...m };
-		if (!metric.id) metric.id = metric.state || metric.type;
-		if (!metric.name) metric.name = metric.type || metric.id;
+		if (!metric.id) {
+			metric.id = metric.state || metric.type;
+		}
+		if (!metric.name) {
+			metric.name = metric.type || metric.id;
+		}
 		return metric;
 	});
 
@@ -216,12 +220,16 @@ function addMetricsRow(data, columns, tableBody) {
 }
 
 function mergeRoomMetrics(roomId, updates) {
-	if (!window.roomMetricsCache) return;
+	if (!window.roomMetricsCache) {
+		return;
+	}
 	const cache = window.roomMetricsCache[roomId] || [];
 	const byId = new Map(cache.map(m => [m.id || m.state || m.type, m]));
 	updates.forEach(up => {
 		const key = up.id || up.state || up.type;
-		if (!key) return;
+		if (!key) {
+			return;
+		}
 		const existing = byId.get(key) || {};
 		const nextValue = up.value !== undefined ? up.value : existing.value;
 		const nextStatus =
@@ -245,7 +253,9 @@ function mergeRoomMetrics(roomId, updates) {
 
 function updateRoomMetricsDom(roomId, metrics) {
 	const row = document.querySelector(`tr[data-device-id="${roomId}"]`);
-	if (!row) return;
+	if (!row) {
+		return;
+	}
 	// update summary cell (metrics column is index 4)
 	const metricsCell = row.children[4];
 	if (metricsCell) {
@@ -253,30 +263,44 @@ function updateRoomMetricsDom(roomId, metrics) {
 	}
 	// update details row if present
 	const metricsRow = row.nextElementSibling;
-	if (!metricsRow || !metricsRow.classList.contains("metrics-row")) return;
+	if (!metricsRow || !metricsRow.classList.contains("metrics-row")) {
+		return;
+	}
 	const items = metricsRow.querySelectorAll(".metric-item");
 	items.forEach(item => {
 		const key = item.dataset.metricId;
-		if (!key) return;
+		if (!key) {
+			return;
+		}
 		const metric = metrics.find(m => (m.id || m.state || m.type) === key);
-		if (!metric) return;
+		if (!metric) {
+			return;
+		}
 		const valueDiv = item.querySelector(".metric-value");
 		const badge = item.querySelector(".metric-badge");
 		const tsDiv = item.querySelector(".metric-ts");
 		const unit = metric.unit ? ` ${metric.unit}` : "";
 		const val = metric.value !== undefined && metric.value !== null ? metric.value : "-";
-		if (valueDiv) valueDiv.textContent = `${val}${unit}`;
-		const status = (metric.status || (metric.value !== undefined && metric.value !== null ? "ok" : "nodata")).toLowerCase();
+		if (valueDiv) {
+			valueDiv.textContent = `${val}${unit}`;
+		}
+		const status = (
+			metric.status || (metric.value !== undefined && metric.value !== null ? "ok" : "nodata")
+		).toLowerCase();
 		if (badge) {
 			badge.className = `metric-badge ${status}`;
 			badge.textContent = status.toUpperCase();
 		}
-		if (tsDiv) tsDiv.textContent = metric.ts ? relativeTime(new Date(metric.ts).getTime()) : "–";
+		if (tsDiv) {
+			tsDiv.textContent = metric.ts ? relativeTime(new Date(metric.ts).getTime()) : "–";
+		}
 	});
 }
 
 function applyRoomMetricsUpdateBatch(payload) {
-	if (!payload?.rooms) return;
+	if (!payload?.rooms) {
+		return;
+	}
 	payload.rooms.forEach(room => {
 		const merged = mergeRoomMetrics(room.roomId, room.metrics);
 		if (merged) {
@@ -286,9 +310,13 @@ function applyRoomMetricsUpdateBatch(payload) {
 }
 
 function handleMetricStateChange(id, state) {
-	if (!window.metricStateIndex) return;
+	if (!window.metricStateIndex) {
+		return;
+	}
 	const ref = window.metricStateIndex.get(id);
-	if (!ref) return;
+	if (!ref) {
+		return;
+	}
 	const updates = [
 		{
 			id: ref.metricId,
@@ -307,7 +335,9 @@ function handleMetricStateChange(id, state) {
 }
 
 function subscribeMetricStates() {
-	if (!window.metricOids || !window.socket) return;
+	if (!window.metricOids || !window.socket) {
+		return;
+	}
 	window.metricOids.forEach(oid => {
 		window.socket.emit("subscribe", oid);
 	});
@@ -343,7 +373,7 @@ function renderRoomRows(states, targetPath, columns, tableBody, currentTab) {
 	Object.keys(states)
 		.sort()
 		.forEach(id => {
-			const relativeId = id.startsWith(targetPath + ".") ? id.substring(targetPath.length + 1) : id;
+			const relativeId = id.startsWith(`${targetPath}.`) ? id.substring(targetPath.length + 1) : id;
 			const val = states[id] ? states[id].val : null;
 
 			let data = {};
@@ -394,4 +424,3 @@ function enqueuePendingMetricUpdate(roomId, update) {
 	arr.push(update);
 	window.pendingRoomMetricUpdates.set(roomId, arr);
 }
-

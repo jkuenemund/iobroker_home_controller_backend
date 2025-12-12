@@ -1,14 +1,26 @@
 function relativeTime(ts) {
 	const now = Date.now();
 	const diffMs = now - ts;
-	if (Number.isNaN(diffMs)) return "–";
+	if (Number.isNaN(diffMs)) {
+		return "–";
+	}
 	const minutes = Math.floor(diffMs / 60000);
-	if (minutes < 1) return "vor wenigen Sekunden";
-	if (minutes === 1) return "vor 1 Minute";
-	if (minutes < 60) return `vor ${minutes} Minuten`;
+	if (minutes < 1) {
+		return "vor wenigen Sekunden";
+	}
+	if (minutes === 1) {
+		return "vor 1 Minute";
+	}
+	if (minutes < 60) {
+		return `vor ${minutes} Minuten`;
+	}
 	const hours = Math.floor(minutes / 60);
-	if (hours === 1) return "vor 1 Stunde";
-	if (hours < 24) return `vor ${hours} Stunden`;
+	if (hours === 1) {
+		return "vor 1 Stunde";
+	}
+	if (hours < 24) {
+		return `vor ${hours} Stunden`;
+	}
 	const days = Math.floor(hours / 24);
 	return days === 1 ? "vor 1 Tag" : `vor ${days} Tagen`;
 }
@@ -21,12 +33,7 @@ function renderMetricSummary(metrics, count) {
 	}
 	const badges = metrics.slice(0, 3).map(m => {
 		const derivedStatus = (
-			m.status ||
-			(m.value !== undefined && m.value !== null
-				? "ok"
-				: m.state
-					? "ok"
-					: "nodata")
+			m.status || (m.value !== undefined && m.value !== null ? "ok" : m.state ? "ok" : "nodata")
 		).toLowerCase();
 		const name = m.name || m.id || "Metric";
 		return `<span class="metric-badge ${derivedStatus}">${name}</span>`;
@@ -61,9 +68,13 @@ window.roomMetricsCache = window.roomMetricsCache || {};
 
 // Metrics timer helpers
 function formatCountdown(ms) {
-	if (ms <= 0) return "bald";
+	if (ms <= 0) {
+		return "bald";
+	}
 	const totalSec = Math.floor(ms / 1000);
-	if (totalSec < 60) return `${totalSec}s`;
+	if (totalSec < 60) {
+		return `${totalSec}s`;
+	}
 	const min = Math.floor(totalSec / 60);
 	const sec = totalSec % 60;
 	return `${min}m ${sec}s`;
@@ -113,8 +124,12 @@ function validateConfig(type, config) {
 			errors.push('"capabilities" is required and must be a non-empty array');
 		} else {
 			config.capabilities.forEach((cap, i) => {
-				if (!cap.type) errors.push(`Capability ${i + 1}: "type" is required`);
-				if (!cap.state) errors.push(`Capability ${i + 1}: "state" is required`);
+				if (!cap.type) {
+					errors.push(`Capability ${i + 1}: "type" is required`);
+				}
+				if (!cap.state) {
+					errors.push(`Capability ${i + 1}: "state" is required`);
+				}
 			});
 		}
 	} else if (type === "rooms") {
@@ -131,4 +146,3 @@ function validateConfig(type, config) {
 
 	return errors;
 }
-

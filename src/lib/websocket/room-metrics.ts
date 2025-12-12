@@ -1,4 +1,4 @@
-import { WebSocket } from "ws";
+import type { WebSocket } from "ws";
 import type { BaseMessage, ConnectedClient, RoomMetric } from "./types";
 import type { SnapshotService } from "../services/snapshot-service";
 import type { SubscriptionRegistry } from "./subscriptions";
@@ -43,10 +43,16 @@ export class RoomMetricsManager {
 			const stateIds = new Set<string>();
 
 			for (const [roomId, room] of Object.entries(rooms)) {
-				if (!room.metrics) continue;
+				if (!room.metrics) {
+					continue;
+				}
 				for (const metricRaw of room.metrics) {
-					const metric = metricRaw as RoomMetric & { id?: string };
-					if (!metric.state) continue;
+					const metric = metricRaw as RoomMetric & {
+						id?: string;
+					};
+					if (!metric.state) {
+						continue;
+					}
 					const metricId = metric.id || metric.state || metric.type || `${roomId}_${Math.random()}`;
 					this.stateToMetric.set(metric.state, {
 						roomId,
@@ -71,7 +77,9 @@ export class RoomMetricsManager {
 
 	public handleStateChange(id: string, state: ioBroker.State): void {
 		const ref = this.stateToMetric.get(id);
-		if (!ref) return;
+		if (!ref) {
+			return;
+		}
 
 		// Prepare metric data
 		const ts = state.ts ? new Date(state.ts).toISOString() : new Date().toISOString();
@@ -97,7 +105,9 @@ export class RoomMetricsManager {
 
 		const message: BaseMessage & {
 			type: "roomMetricsUpdateBatch";
-			payload: { rooms: typeof roomsPayload };
+			payload: {
+				rooms: typeof roomsPayload;
+			};
 		} = {
 			type: "roomMetricsUpdateBatch",
 			payload: { rooms: roomsPayload },
@@ -111,4 +121,3 @@ export class RoomMetricsManager {
 		}
 	}
 }
-

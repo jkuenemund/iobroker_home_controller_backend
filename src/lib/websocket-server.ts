@@ -12,7 +12,8 @@
 import { WebSocket, WebSocketServer as WSServer } from "ws";
 import type { IncomingMessage, Server as HttpServer, ServerResponse } from "http";
 import { createServer as createHttpServer } from "http";
-import { createServer as createHttpsServer, Server as HttpsServer } from "https";
+import type { Server as HttpsServer } from "https";
+import { createServer as createHttpsServer } from "https";
 import fs from "fs";
 import type { BaseMessage, ConnectedClient, InitialSnapshotResponse, ErrorMessage, ErrorCode } from "./websocket/types";
 import { SnapshotService } from "./services/snapshot-service";
@@ -395,9 +396,7 @@ export class HomeControllerWebSocketServer {
 	/**
 	 * Authenticate incoming connection (Basic or none)
 	 */
-	private authenticate(
-		req: IncomingMessage,
-	): { ok: boolean; user?: string; closeCode?: number; reason?: string } {
+	private authenticate(req: IncomingMessage): { ok: boolean; user?: string; closeCode?: number; reason?: string } {
 		const mode = this.adapter.config.authMode ?? "none";
 		if (mode === "none") {
 			return { ok: true };

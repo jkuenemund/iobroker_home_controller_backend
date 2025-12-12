@@ -1,6 +1,6 @@
-/* eslint-disable jsdoc/require-param, jsdoc/require-jsdoc */
+/* eslint-disable jsdoc/require-jsdoc */
 
-import { WebSocket } from "ws";
+import type { WebSocket } from "ws";
 import type {
 	BaseMessage,
 	ConnectedClient,
@@ -85,7 +85,7 @@ export class StateChangeManager {
 
 	private async subscribeToSceneChanges(): Promise<void> {
 		try {
-			const scenesPath = this.deps.adapter.config.scenesPath || 'cron_scenes.0.jobs';
+			const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
 
 			// Subscribe to all scene states with wildcard
 			// This will catch: cron_scenes.0.jobs.*, cron_scenes.0.jobs.*.status, cron_scenes.0.jobs.*.trigger
@@ -99,7 +99,7 @@ export class StateChangeManager {
 
 	public handleStateChange(id: string, state: ioBroker.State): void {
 		// Check if it's a scene state change
-		const scenesPath = this.deps.adapter.config.scenesPath || 'cron_scenes.0.jobs';
+		const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
 		if (id.startsWith(scenesPath)) {
 			this.handleSceneStateChange(id, state);
 			return;
@@ -116,7 +116,7 @@ export class StateChangeManager {
 
 	private handleSceneStateChange(id: string, state: ioBroker.State): void {
 		// Ignore .trigger states (they're just momentary triggers)
-		if (id.endsWith('.trigger')) {
+		if (id.endsWith(".trigger")) {
 			return;
 		}
 
@@ -139,7 +139,7 @@ export class StateChangeManager {
 				const scenes = await this.deps.snapshotService.getScenes();
 
 				const message = {
-					type: 'snapshot',
+					type: "snapshot",
 					payload: {
 						scenes,
 					},
@@ -228,4 +228,3 @@ export class StateChangeManager {
 		}
 	}
 }
-

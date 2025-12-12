@@ -1,4 +1,4 @@
-import { WebSocket } from "ws";
+import type { WebSocket } from "ws";
 import { v4 as uuidv4 } from "uuid";
 import type {
 	BaseMessage,
@@ -26,7 +26,10 @@ import type { SubscriptionRegistry } from "./subscriptions";
 import type { AdapterInterface } from "./adapter-interface";
 
 export interface HandlerContext {
-	adapter: Pick<AdapterInterface, "log" | "config" | "setForeignStateAsync" | "delForeignObjectAsync" | "extendForeignObjectAsync">;
+	adapter: Pick<
+		AdapterInterface,
+		"log" | "config" | "setForeignStateAsync" | "delForeignObjectAsync" | "extendForeignObjectAsync"
+	>;
 	clients: Map<WebSocket, ConnectedClient>;
 	snapshotService: SnapshotService;
 	nextSeq: () => number;
@@ -41,7 +44,9 @@ export interface HandlerContext {
 }
 
 export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: BaseMessage): void {
-	const regMsg = message as BaseMessage & { payload: any };
+	const regMsg = message as BaseMessage & {
+		payload: any;
+	};
 	const { clientName, clientVersion, clientType, lastSeqSeen } = regMsg.payload;
 	const currentSeq = ctx.getSeq();
 	if (lastSeqSeen !== undefined && lastSeqSeen < currentSeq) {
@@ -90,11 +95,7 @@ export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: Base
 	ctx.notifyClientChange();
 }
 
-export async function handleGetDevices(
-	ctx: HandlerContext,
-	ws: WebSocket,
-	message: BaseMessage,
-): Promise<void> {
+export async function handleGetDevices(ctx: HandlerContext, ws: WebSocket, message: BaseMessage): Promise<void> {
 	const client = ctx.clients.get(ws);
 	if (!client?.isRegistered) {
 		ctx.sendError(ws, message.id, ErrorCodes.NOT_REGISTERED, "Client must register first");
@@ -120,11 +121,7 @@ export async function handleGetDevices(
 	}
 }
 
-export async function handleGetRooms(
-	ctx: HandlerContext,
-	ws: WebSocket,
-	message: GetRoomsRequest,
-): Promise<void> {
+export async function handleGetRooms(ctx: HandlerContext, ws: WebSocket, message: GetRoomsRequest): Promise<void> {
 	const client = ctx.clients.get(ws);
 	if (!client?.isRegistered) {
 		ctx.sendError(ws, message.id, ErrorCodes.NOT_REGISTERED, "Client must register first");
@@ -141,12 +138,7 @@ export async function handleGetRooms(
 		ctx.send(ws, response);
 		ctx.adapter.log.debug(`Sent ${Object.keys(rooms).length} rooms to ${client.name}`);
 	} catch (error) {
-		ctx.sendError(
-			ws,
-			message.id,
-			ErrorCodes.INTERNAL_ERROR,
-			`Failed to fetch rooms: ${(error as Error).message}`,
-		);
+		ctx.sendError(ws, message.id, ErrorCodes.INTERNAL_ERROR, `Failed to fetch rooms: ${(error as Error).message}`);
 	}
 }
 
@@ -315,12 +307,7 @@ export async function handleSetState(ctx: HandlerContext, ws: WebSocket, message
 		// respond with ack message (could be a stateChange later)
 		ctx.send(ws, { type: "ack", id: message.id });
 	} catch (error) {
-		ctx.sendError(
-			ws,
-			message.id,
-			ErrorCodes.INTERNAL_ERROR,
-			`Failed to set state: ${(error as Error).message}`,
-		);
+		ctx.sendError(ws, message.id, ErrorCodes.INTERNAL_ERROR, `Failed to set state: ${(error as Error).message}`);
 	}
 }
 
@@ -360,13 +347,10 @@ export async function handleTriggerScene(
 	}
 }
 
-
-
-export async function handleSaveScene(
-	ctx: HandlerContext,
-	ws: WebSocket,
-	message: SaveSceneRequest,
-): Promise<void> {
+/**
+ *
+ */
+export async function handleSaveScene(ctx: HandlerContext, ws: WebSocket, message: SaveSceneRequest): Promise<void> {
 	const client = ctx.clients.get(ws);
 	if (!client?.isRegistered) {
 		ctx.sendError(ws, message.id, ErrorCodes.NOT_REGISTERED, "Client must register first");
@@ -402,12 +386,7 @@ export async function handleSaveScene(
 		ctx.send(ws, { type: "ack", id: message.id });
 		ctx.adapter.log.info(`Saved scene ${sceneId} via WebSocket from ${client.name}`);
 	} catch (error) {
-		ctx.sendError(
-			ws,
-			message.id,
-			ErrorCodes.INTERNAL_ERROR,
-			`Failed to save scene: ${(error as Error).message}`,
-		);
+		ctx.sendError(ws, message.id, ErrorCodes.INTERNAL_ERROR, `Failed to save scene: ${(error as Error).message}`);
 	}
 }
 
@@ -435,12 +414,7 @@ export async function handleDeleteScene(
 		ctx.send(ws, { type: "ack", id: message.id });
 		ctx.adapter.log.info(`Deleted scene ${sceneId} via WebSocket from ${client.name}`);
 	} catch (error) {
-		ctx.sendError(
-			ws,
-			message.id,
-			ErrorCodes.INTERNAL_ERROR,
-			`Failed to delete scene: ${(error as Error).message}`,
-		);
+		ctx.sendError(ws, message.id, ErrorCodes.INTERNAL_ERROR, `Failed to delete scene: ${(error as Error).message}`);
 	}
 }
 
@@ -462,4 +436,3 @@ async function sendInitialSnapshot(ctx: HandlerContext, ws: WebSocket): Promise<
 		ctx.adapter.log.warn(`Failed to send initialSnapshot: ${(error as Error).message}`);
 	}
 }
-

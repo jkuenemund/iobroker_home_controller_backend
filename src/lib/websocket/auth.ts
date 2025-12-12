@@ -64,7 +64,7 @@ export class AuthService {
 
 		try {
 			const [passwordValid] = await this.adapter.checkPasswordAsync(userId, password);
-			
+
 			if (!passwordValid) {
 				this.adapter.log.warn(`Token request rejected: invalid password for user ${username}`);
 				return { ok: false, reason: "INVALID_CREDENTIALS" };
@@ -196,4 +196,3 @@ export class AuthService {
 		throw new Error("ioBroker secret not available");
 	}
 }
-

@@ -114,7 +114,6 @@ export interface SetStateRequest extends BaseMessage {
 	};
 }
 
-
 export interface TriggerSceneRequest extends BaseMessage {
 	type: "triggerScene";
 	payload: {
@@ -383,7 +382,6 @@ export type ClientMessage =
 	| HelpRequest
 	| SubscribeRequest
 	| UnsubscribeRequest
-	| SetStateRequest
 	| SetStateRequest
 	| TriggerSceneRequest
 	| SaveSceneRequest

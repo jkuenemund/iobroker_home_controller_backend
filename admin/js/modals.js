@@ -42,14 +42,14 @@ function saveNewItem() {
 	try {
 		config = JSON.parse(configText);
 	} catch (e) {
-		errorEl.textContent = "Invalid JSON: " + e.message;
+		errorEl.textContent = `Invalid JSON: ${e.message}`;
 		errorEl.classList.add("visible");
 		return;
 	}
 
 	const validationErrors = validateConfig(currentTab, config);
 	if (validationErrors.length > 0) {
-		errorEl.innerHTML = "Validation errors:<br>• " + validationErrors.join("<br>• ");
+		errorEl.innerHTML = `Validation errors:<br>• ${validationErrors.join("<br>• ")}`;
 		errorEl.classList.add("visible");
 		return;
 	}
@@ -76,7 +76,7 @@ function saveNewItem() {
 		},
 		err => {
 			if (err) {
-				errorEl.textContent = "Error creating object: " + err;
+				errorEl.textContent = `Error creating object: ${err}`;
 				errorEl.classList.add("visible");
 				return;
 			}
@@ -85,7 +85,7 @@ function saveNewItem() {
 
 			window.socket.emit("setState", stateId, { val: stateValue, ack: true }, err2 => {
 				if (err2) {
-					errorEl.textContent = "Error setting state value: " + err2;
+					errorEl.textContent = `Error setting state value: ${err2}`;
 					errorEl.classList.add("visible");
 					return;
 				}
@@ -102,9 +102,9 @@ function exportData() {
 	const targetPath = `${currentBasePath}.${currentTab}`;
 	console.log("Exporting data from:", targetPath);
 
-	window.socket.emit("getStates", targetPath + ".*", (err, states) => {
+	window.socket.emit("getStates", `${targetPath}.*`, (err, states) => {
 		if (err) {
-			alert("Error fetching data for export: " + err);
+			alert(`Error fetching data for export: ${err}`);
 			return;
 		}
 
@@ -112,7 +112,7 @@ function exportData() {
 		Object.keys(states)
 			.sort()
 			.forEach(id => {
-				const relativeId = id.startsWith(targetPath + ".") ? id.substring(targetPath.length + 1) : id;
+				const relativeId = id.startsWith(`${targetPath}.`) ? id.substring(targetPath.length + 1) : id;
 				const val = states[id] ? states[id].val : null;
 
 				try {
@@ -146,7 +146,9 @@ function exportData() {
 
 function handleImportFile(event) {
 	const file = event.target.files[0];
-	if (!file) return;
+	if (!file) {
+		return;
+	}
 
 	const reader = new FileReader();
 	reader.onload = e => {
@@ -159,7 +161,11 @@ function handleImportFile(event) {
 			}
 
 			if (importData.type !== currentTab) {
-				if (!confirm(`File contains ${importData.type}, but current tab is ${currentTab}. Switch tab and import?`)) {
+				if (
+					!confirm(
+						`File contains ${importData.type}, but current tab is ${currentTab}. Switch tab and import?`,
+					)
+				) {
 					return;
 				}
 				switchTab(importData.type);
@@ -186,9 +192,9 @@ function handleImportFile(event) {
 
 			if (allErrors.length > 0) {
 				alert(
-					"Validation errors:\n• " +
-						allErrors.slice(0, 10).join("\n• ") +
-						(allErrors.length > 10 ? `\n... and ${allErrors.length - 10} more` : ""),
+					`Validation errors:\n• ${allErrors
+						.slice(0, 10)
+						.join("\n• ")}${allErrors.length > 10 ? `\n... and ${allErrors.length - 10} more` : ""}`,
 				);
 				return;
 			}
@@ -230,7 +236,7 @@ function handleImportFile(event) {
 				});
 			});
 		} catch (e) {
-			alert("Error parsing file: " + e.message);
+			alert(`Error parsing file: ${e.message}`);
 		}
 	};
 	reader.readAsText(file);
@@ -267,7 +273,13 @@ function updateClientsDisplay(clientsJson) {
 	clientsList.innerHTML = clients
 		.map((client, idx) => {
 			const icon =
-				client.clientType === "mobile" ? "📱" : client.clientType === "web" ? "🌐" : client.clientType === "desktop" ? "💻" : "🔌";
+				client.clientType === "mobile"
+					? "📱"
+					: client.clientType === "web"
+						? "🌐"
+						: client.clientType === "desktop"
+							? "💻"
+							: "🔌";
 
 			const logCount = client.recentRequests?.length || 0;
 			const authUser = client.authUser ? client.authUser : "n/a";
@@ -320,7 +332,9 @@ function toggleLogs(clientIdx) {
 }
 
 function disconnectClient(clientId) {
-	if (!confirm("Disconnect this client?")) return;
+	if (!confirm("Disconnect this client?")) {
+		return;
+	}
 
 	console.log("Disconnecting client:", clientId);
 	window.socket.emit("sendTo", "home_controller_backend.0", "disconnectClient", clientId, result => {
@@ -332,4 +346,3 @@ function disconnectClient(clientId) {
 		}
 	});
 }
-

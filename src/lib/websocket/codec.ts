@@ -1,4 +1,4 @@
-/* eslint-disable jsdoc/require-param, jsdoc/require-jsdoc */
+/* eslint-disable jsdoc/require-jsdoc */
 
 import Ajv, { type ValidateFunction } from "ajv";
 import type { BaseMessage } from "./types";
@@ -113,4 +113,3 @@ export function validateIncoming(message: unknown): { ok: boolean; errors?: stri
 	}
 	return { ok: true, parsed: typed };
 }
-

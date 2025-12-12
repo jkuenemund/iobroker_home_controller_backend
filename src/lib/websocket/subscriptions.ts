@@ -1,6 +1,6 @@
-/* eslint-disable jsdoc/require-param, jsdoc/require-jsdoc */
+/* eslint-disable jsdoc/require-jsdoc */
 
-import { WebSocket } from "ws";
+import type { WebSocket } from "ws";
 import type { ConnectedClient, StateChangeMessage } from "./types";
 
 export interface SubscriptionFilters {
@@ -56,8 +56,12 @@ export class SubscriptionRegistry {
 	}
 
 	private diff(current?: string[], remove?: string[]): string[] | undefined {
-		if (!current) return undefined;
-		if (!remove || remove.length === 0) return current;
+		if (!current) {
+			return undefined;
+		}
+		if (!remove || remove.length === 0) {
+			return current;
+		}
 		const set = new Set(current);
 		for (const item of remove) {
 			set.delete(item);
@@ -113,4 +117,3 @@ export class SubscriptionRegistry {
 		this.filters.delete(ws);
 	}
 }
-

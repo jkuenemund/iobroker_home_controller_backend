@@ -49,15 +49,15 @@ class HomeControllerBackend extends utils.Adapter {
 			this.wsServer = new HomeControllerWebSocketServer(this);
 
 			// Register callback for client changes
-			this.wsServer.onClientChange((clients) => {
-				const clientInfo = clients.map((c) => ({
+			this.wsServer.onClientChange(clients => {
+				const clientInfo = clients.map(c => ({
 					id: c.id,
 					name: c.name,
 					authUser: c.authUser,
 					version: c.version,
 					clientType: c.clientType,
 					connectedAt: c.connectedAt.toISOString(),
-					recentRequests: c.recentRequests.map((r) => ({
+					recentRequests: c.recentRequests.map(r => ({
 						timestamp: r.timestamp.toISOString(),
 						type: r.type,
 						id: r.id,
@@ -75,6 +75,8 @@ class HomeControllerBackend extends utils.Adapter {
 
 	/**
 	 * Is called when adapter shuts down - callback has to be called under any circumstances!
+	 *
+	 * @param callback
 	 */
 	private onUnload(callback: () => void): void {
 		try {
@@ -96,6 +98,9 @@ class HomeControllerBackend extends utils.Adapter {
 
 	/**
 	 * Is called if a subscribed state changes
+	 *
+	 * @param id
+	 * @param state
 	 */
 	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
 		if (state) {
@@ -108,6 +113,8 @@ class HomeControllerBackend extends utils.Adapter {
 
 	/**
 	 * Handle messages from admin UI
+	 *
+	 * @param obj
 	 */
 	private onMessage(obj: ioBroker.Message): void {
 		if (typeof obj === "object" && obj.message) {

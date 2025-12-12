@@ -40,24 +40,41 @@ export class AuthService {
 		}
 
 		const userObj = await this.adapter.getForeignObjectAsync?.(`system.user.${username}`).catch(error => {
-			this.adapter.log.warn(`User lookup failed: ${(error as Error).message}`);
+			this.adapter.log.warn(`User lookup failed for ${username}: ${(error as Error).message}`);
 			return null;
 		});
 
-		if (!userObj || userObj.type !== "user" || userObj.common?.enabled === false) {
+		if (!userObj || userObj.type !== "user") {
+			this.adapter.log.warn(`Token request rejected: user ${username} not found`);
 			return { ok: false, reason: "USER_NOT_FOUND" };
 		}
 
+		if (userObj.common?.enabled === false) {
+			this.adapter.log.warn(`Token request rejected: user ${username} is disabled`);
+			return { ok: false, reason: "USER_NOT_FOUND" };
+		}
+
+		const storedHash = userObj.common?.password as string | undefined;
+		if (!storedHash || storedHash.trim().length === 0) {
+			this.adapter.log.warn(`Token request rejected: user ${username} has no password set`);
+			return { ok: false, reason: "NO_PASSWORD_SET" };
+		}
+
+		const userId = userObj._id ?? `system.user.${username}`;
+
 		try {
-			const userId = userObj._id ?? `system.user.${username}`;
-			const ok = await this.adapter.checkPasswordAsync(userId, password);
-			if (!ok) {
+			const [passwordValid] = await this.adapter.checkPasswordAsync(userId, password);
+			
+			if (!passwordValid) {
+				this.adapter.log.warn(`Token request rejected: invalid password for user ${username}`);
 				return { ok: false, reason: "INVALID_CREDENTIALS" };
 			}
 		} catch (error) {
-			this.adapter.log.warn(`Password check failed: ${(error as Error).message}`);
+			this.adapter.log.error(`Password check failed for ${username}: ${(error as Error).message}`);
 			return { ok: false, reason: "AUTH_ERROR" };
 		}
+
+		this.adapter.log.info(`Token issued successfully for user: ${username}`);
 
 		const now = Math.floor(Date.now() / 1000);
 		const exp = now + (ttlSeconds ?? this.getDefaultTtlSeconds());

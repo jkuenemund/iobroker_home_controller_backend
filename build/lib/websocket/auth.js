@@ -50,27 +50,39 @@ class AuthService {
     return ttl < 60 ? 60 : ttl;
   }
   async issueTokenForUser(username, password, ttlSeconds) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     if (!username || !password) {
       return { ok: false, reason: "INVALID_CREDENTIALS" };
     }
     const userObj = await ((_b = (_a = this.adapter).getForeignObjectAsync) == null ? void 0 : _b.call(_a, `system.user.${username}`).catch((error) => {
-      this.adapter.log.warn(`User lookup failed: ${error.message}`);
+      this.adapter.log.warn(`User lookup failed for ${username}: ${error.message}`);
       return null;
     }));
-    if (!userObj || userObj.type !== "user" || ((_c = userObj.common) == null ? void 0 : _c.enabled) === false) {
+    if (!userObj || userObj.type !== "user") {
+      this.adapter.log.warn(`Token request rejected: user ${username} not found`);
       return { ok: false, reason: "USER_NOT_FOUND" };
     }
+    if (((_c = userObj.common) == null ? void 0 : _c.enabled) === false) {
+      this.adapter.log.warn(`Token request rejected: user ${username} is disabled`);
+      return { ok: false, reason: "USER_NOT_FOUND" };
+    }
+    const storedHash = (_d = userObj.common) == null ? void 0 : _d.password;
+    if (!storedHash || storedHash.trim().length === 0) {
+      this.adapter.log.warn(`Token request rejected: user ${username} has no password set`);
+      return { ok: false, reason: "NO_PASSWORD_SET" };
+    }
+    const userId = (_e = userObj._id) != null ? _e : `system.user.${username}`;
     try {
-      const userId = (_d = userObj._id) != null ? _d : `system.user.${username}`;
-      const ok = await this.adapter.checkPasswordAsync(userId, password);
-      if (!ok) {
+      const [passwordValid] = await this.adapter.checkPasswordAsync(userId, password);
+      if (!passwordValid) {
+        this.adapter.log.warn(`Token request rejected: invalid password for user ${username}`);
         return { ok: false, reason: "INVALID_CREDENTIALS" };
       }
     } catch (error) {
-      this.adapter.log.warn(`Password check failed: ${error.message}`);
+      this.adapter.log.error(`Password check failed for ${username}: ${error.message}`);
       return { ok: false, reason: "AUTH_ERROR" };
     }
+    this.adapter.log.info(`Token issued successfully for user: ${username}`);
     const now = Math.floor(Date.now() / 1e3);
     const exp = now + (ttlSeconds != null ? ttlSeconds : this.getDefaultTtlSeconds());
     const payload = {

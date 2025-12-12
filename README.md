@@ -158,8 +158,7 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
-
-### **WORK IN PROGRESS**
+### 0.0.2-alpha.0 (2025-12-12)
 * (prof) add token-based WebSocket auth, optional TLS, and `/token` issuance endpoint
 
 ## License

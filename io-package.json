@@ -1,108 +1,121 @@
 {
-	"common": {
-		"name": "home_controller_backend",
-		"version": "0.0.1",
-		"news": {
-			"0.0.1": {
-				"en": "initial release",
-				"de": "Erstveröffentlichung",
-				"ru": "Начальная версия",
-				"pt": "lançamento inicial",
-				"nl": "Eerste uitgave",
-				"fr": "Première version",
-				"it": "Versione iniziale",
-				"es": "Versión inicial",
-				"pl": "Pierwsze wydanie",
-				"uk": "Початкова версія",
-				"zh-cn": "首次出版"
-			}
-		},
-		"titleLang": {
-			"en": "home_controller",
-			"de": "home_controller",
-			"ru": "home_controller",
-			"pt": "controlador_home",
-			"nl": "home_controller",
-			"fr": "contrôleur_accueil",
-			"it": "home_controller",
-			"es": "controlador_de_casa",
-			"pl": "kontroler_domowy",
-			"uk": "home_controller",
-			"zh-cn": "家庭控制器"
-		},
-		"desc": {
-			"en": "home_controller_backend",
-			"de": "home_controller_backend",
-			"ru": "home_controller_backend",
-			"pt": "home_controller_backend",
-			"nl": "home_controller_backend",
-			"fr": "home_controller_backend",
-			"it": "home_controller_backend",
-			"es": "home_controller_backend",
-			"pl": "zaplecze_kontrolera_domowego",
-			"uk": "home_controller_backend",
-			"zh-cn": "主页控制器后端"
-		},
-		"authors": [
-			"prof <jens.kuenemund@gmx.de>"
-		],
-		"keywords": [
-			"template",
-			"automation",
-			"IoT",
-			"integration"
-		],
-		"licenseInformation": {
-			"type": "free",
-			"license": "MIT"
-		},
-		"platform": "Javascript/Node.js",
-		"icon": "home_controller_backend.png",
-		"enabled": true,
-		"extIcon": "https://raw.githubusercontent.com/jkuenemund/ioBroker.home_controller_backend/main/admin/home_controller_backend.png",
-		"readme": "https://github.com/jkuenemund/ioBroker.home_controller_backend/blob/main/README.md",
-		"loglevel": "info",
-		"tier": 3,
-		"mode": "daemon",
-		"type": "visualization",
-		"compact": true,
-		"messagebox": true,
-		"connectionType": "local",
-		"dataSource": "push",
-		"adminUI": {
-			"config": "json",
-			"tab": "materialize"
-		},
-		"adminTab": {
-			"name": {
-				"en": "Home Controller",
-				"de": "Home Controller"
-			},
-			"fa-icon": "fas fa-home"
-		},
-		"eraseOnUpload": true,
-		"dependencies": [
-			{
-				"js-controller": ">=6.0.11"
-			}
-		],
-		"globalDependencies": [
-			{
-				"admin": ">=7.0.23"
-			}
-		]
-	},
-	"native": {
-		"basePath": "0_userdata.0.home_controller",
-		"wsPort": 8082,
-		"scenesPath": "cron_scenes.0.jobs",
-		"authMode": "token",
-		"tokenTtlSeconds": 3600,
-		"staticToken": "",
-		"wsUseTls": false,
-		"wsTlsCertPath": "",
-		"wsTlsKeyPath": ""
-	},
-	"objects": [],
-	"instanceObjects": []
+  "common": {
+    "name": "home_controller_backend",
+    "version": "0.0.2-alpha.0",
+    "news": {
+      "0.0.2-alpha.0": {
+        "en": "add token-based WebSocket auth, optional TLS, and `/token` issuance endpoint",
+        "de": "webSocket Auth, optional TLS und `/token` Ausgabeendpunkt hinzufügen",
+        "ru": "добавить на основе токенов WebSocket auth, дополнительный TLS и конечную точку выдачи «/token»",
+        "pt": "adicionar autenticação WebSocket baseada em fichas, TLS opcional e endpoint de emissão `/token`",
+        "nl": "toevoegen token-gebaseerde WebSocket auth, optionele TLS, en ",
+        "fr": "ajouter le paramètre d'émission WebSocket auth, TLS optionnel et `/token`",
+        "it": "aggiungere token-based WebSocket auth, TLS opzionale e `/token` emissione endpoint",
+        "es": "add token-based WebSocket auth, Optional TLS, and `/token` issuance endpoint",
+        "pl": "dodaj uwierzytelnianie WebSocket oparte na tokenach, opcjonalne TLS i '/ token' końcowy punkt emisji",
+        "uk": "додати токени на основі WebSocket auth, необов'язкові TLS, і `/token`suance endpointpoint",
+        "zh-cn": "添加基于符号的 WebSocket 认证、可选 TLS 和 `/token' 发行端点"
+      },
+      "0.0.1": {
+        "en": "initial release",
+        "de": "Erstveröffentlichung",
+        "ru": "Начальная версия",
+        "pt": "lançamento inicial",
+        "nl": "Eerste uitgave",
+        "fr": "Première version",
+        "it": "Versione iniziale",
+        "es": "Versión inicial",
+        "pl": "Pierwsze wydanie",
+        "uk": "Початкова версія",
+        "zh-cn": "首次出版"
+      }
+    },
+    "titleLang": {
+      "en": "home_controller",
+      "de": "home_controller",
+      "ru": "home_controller",
+      "pt": "controlador_home",
+      "nl": "home_controller",
+      "fr": "contrôleur_accueil",
+      "it": "home_controller",
+      "es": "controlador_de_casa",
+      "pl": "kontroler_domowy",
+      "uk": "home_controller",
+      "zh-cn": "家庭控制器"
+    },
+    "desc": {
+      "en": "home_controller_backend",
+      "de": "home_controller_backend",
+      "ru": "home_controller_backend",
+      "pt": "home_controller_backend",
+      "nl": "home_controller_backend",
+      "fr": "home_controller_backend",
+      "it": "home_controller_backend",
+      "es": "home_controller_backend",
+      "pl": "zaplecze_kontrolera_domowego",
+      "uk": "home_controller_backend",
+      "zh-cn": "主页控制器后端"
+    },
+    "authors": [
+      "prof <jens.kuenemund@gmx.de>"
+    ],
+    "keywords": [
+      "template",
+      "automation",
+      "IoT",
+      "integration"
+    ],
+    "licenseInformation": {
+      "type": "free",
+      "license": "MIT"
+    },
+    "platform": "Javascript/Node.js",
+    "icon": "home_controller_backend.png",
+    "enabled": true,
+    "extIcon": "https://raw.githubusercontent.com/jkuenemund/ioBroker.home_controller_backend/main/admin/home_controller_backend.png",
+    "readme": "https://github.com/jkuenemund/ioBroker.home_controller_backend/blob/main/README.md",
+    "loglevel": "info",
+    "tier": 3,
+    "mode": "daemon",
+    "type": "visualization",
+    "compact": true,
+    "messagebox": true,
+    "connectionType": "local",
+    "dataSource": "push",
+    "adminUI": {
+      "config": "json",
+      "tab": "materialize"
+    },
+    "adminTab": {
+      "name": {
+        "en": "Home Controller",
+        "de": "Home Controller"
+      },
+      "fa-icon": "fas fa-home"
+    },
+    "eraseOnUpload": true,
+    "dependencies": [
+      {
+        "js-controller": ">=6.0.11"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=7.0.23"
+      }
+    ]
+  },
+  "native": {
+    "basePath": "0_userdata.0.home_controller",
+    "wsPort": 8082,
+    "scenesPath": "cron_scenes.0.jobs",
+    "authMode": "token",
+    "tokenTtlSeconds": 3600,
+    "staticToken": "",
+    "wsUseTls": false,
+    "wsTlsCertPath": "",
+    "wsTlsKeyPath": ""
+  },
+  "objects": [],
+  "instanceObjects": []
 }

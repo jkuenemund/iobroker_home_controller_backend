@@ -48,6 +48,7 @@ export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: Base
 		ctx.sendError(ws, message.id, ErrorCodes.RESYNC_REQUIRED, "Snapshot required; lastSeqSeen stale");
 	}
 	const clientId = uuidv4();
+	const existing = ctx.clients.get(ws);
 
 	const client: ConnectedClient = {
 		id: clientId,
@@ -57,6 +58,7 @@ export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: Base
 		connectedAt: new Date(),
 		isRegistered: true,
 		recentRequests: [],
+		authUser: existing?.authUser,
 	};
 	ctx.clients.set(ws, client);
 	// apply default subscription strategy (all/none)

@@ -95,7 +95,13 @@
 	"native": {
 		"basePath": "0_userdata.0.home_controller",
 		"wsPort": 8082,
-		"scenesPath": "cron_scenes.0.jobs"
+		"scenesPath": "cron_scenes.0.jobs",
+		"authMode": "token",
+		"tokenTtlSeconds": 3600,
+		"staticToken": "",
+		"wsUseTls": false,
+		"wsTlsCertPath": "",
+		"wsTlsKeyPath": ""
 	},
 	"objects": [],
 	"instanceObjects": []

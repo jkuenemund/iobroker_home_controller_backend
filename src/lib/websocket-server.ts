@@ -10,7 +10,10 @@
 /* eslint-disable jsdoc/require-param, jsdoc/require-jsdoc */
 
 import { WebSocket, WebSocketServer as WSServer } from "ws";
-import type { IncomingMessage } from "http";
+import type { IncomingMessage, Server as HttpServer, ServerResponse } from "http";
+import { createServer as createHttpServer } from "http";
+import { createServer as createHttpsServer, Server as HttpsServer } from "https";
+import fs from "fs";
 import type { BaseMessage, ConnectedClient, InitialSnapshotResponse, ErrorMessage, ErrorCode } from "./websocket/types";
 import { SnapshotService } from "./services/snapshot-service";
 import { ErrorCodes } from "./websocket/types";
@@ -21,6 +24,7 @@ import { SubscriptionRegistry } from "./websocket/subscriptions";
 import { validateIncoming } from "./websocket/codec";
 import { RoomMetricsManager } from "./websocket/room-metrics";
 import type { AdapterInterface } from "./websocket/adapter-interface";
+import { AuthService } from "./websocket/auth";
 
 // Re-export for convenience
 export { ErrorCodes } from "./websocket/types";
@@ -30,6 +34,7 @@ export { ErrorCodes } from "./websocket/types";
  */
 export class HomeControllerWebSocketServer {
 	private wss: WSServer | null = null;
+	private server: HttpServer | HttpsServer | null = null;
 	private clients: Map<WebSocket, ConnectedClient> = new Map();
 	private adapter: AdapterInterface;
 	private serverVersion = "0.0.1";
@@ -43,6 +48,7 @@ export class HomeControllerWebSocketServer {
 	private socketMeta: WeakMap<WebSocket, { isAlive: boolean; idleTimer?: NodeJS.Timeout }> = new WeakMap();
 	private subscriptions: SubscriptionRegistry;
 	private onClientChangeCallback: ((clients: ConnectedClient[]) => void) | null = null;
+	private authService: AuthService;
 
 	// Map stateId -> list of capabilities that use it
 	private stateChangeManager: StateChangeManager;
@@ -70,6 +76,7 @@ export class HomeControllerWebSocketServer {
 			subscriptions: this.subscriptions,
 			send: (ws: WebSocket, msg: BaseMessage) => this.send(ws, msg),
 		});
+		this.authService = new AuthService(adapter);
 	}
 
 	/**
@@ -91,9 +98,13 @@ export class HomeControllerWebSocketServer {
 	/**
 	 * Start the WebSocket server
 	 */
-	public start(): void {
+	public async start(): Promise<void> {
+		await this.authService.init();
+
+		this.server = this.buildHttpServer();
+
 		this.wss = new WSServer({
-			port: this.adapter.config.wsPort,
+			server: this.server,
 			perMessageDeflate: true,
 		});
 
@@ -104,7 +115,7 @@ export class HomeControllerWebSocketServer {
 				ws.close(auth.closeCode ?? 4001, auth.reason ?? "AUTH_FAILED");
 				return;
 			}
-			this.handleConnection(ws, req);
+			this.handleConnection(ws, req, auth.user);
 		});
 
 		// Initial subscription to all known states
@@ -118,7 +129,10 @@ export class HomeControllerWebSocketServer {
 
 		this.heartbeatInterval = setInterval(() => this.checkHeartbeats(), this.pingIntervalMs);
 
-		this.adapter.log.info(`WebSocket server started on port ${this.adapter.config.wsPort}`);
+		this.server.listen(this.adapter.config.wsPort, () => {
+			const scheme = this.adapter.config.wsUseTls ? "wss" : "ws";
+			this.adapter.log.info(`WebSocket server started on ${scheme}://0.0.0.0:${this.adapter.config.wsPort}`);
+		});
 	}
 
 	/**
@@ -147,6 +161,10 @@ export class HomeControllerWebSocketServer {
 			this.wss.close();
 			this.wss = null;
 			this.adapter.log.info("WebSocket server stopped");
+		}
+		if (this.server) {
+			this.server.close();
+			this.server = null;
 		}
 	}
 
@@ -181,7 +199,7 @@ export class HomeControllerWebSocketServer {
 	/**
 	 * Handle new WebSocket connection
 	 */
-	private handleConnection(ws: WebSocket, _req: IncomingMessage): void {
+	private handleConnection(ws: WebSocket, _req: IncomingMessage, authUser?: string): void {
 		this.adapter.log.debug("New WebSocket connection");
 
 		this.socketMeta.set(ws, { isAlive: true });
@@ -201,6 +219,7 @@ export class HomeControllerWebSocketServer {
 			connectedAt: new Date(),
 			isRegistered: false,
 			recentRequests: [],
+			authUser,
 		});
 
 		ws.on("message", (data: Buffer) => {
@@ -376,10 +395,21 @@ export class HomeControllerWebSocketServer {
 	/**
 	 * Authenticate incoming connection (Basic or none)
 	 */
-	private authenticate(req: IncomingMessage): { ok: boolean; closeCode?: number; reason?: string } {
+	private authenticate(
+		req: IncomingMessage,
+	): { ok: boolean; user?: string; closeCode?: number; reason?: string } {
 		const mode = this.adapter.config.authMode ?? "none";
 		if (mode === "none") {
 			return { ok: true };
+		}
+
+		if (mode === "token") {
+			const result = this.authService.authenticateUpgrade(req);
+			if (result.ok) {
+				return { ok: true, user: result.user };
+			}
+			const closeCode = result.reason === "TOKEN_EXPIRED" ? 4002 : 4001;
+			return { ok: false, closeCode, reason: result.reason ?? "AUTH_FAILED" };
 		}
 
 		if (mode === "basic") {
@@ -412,6 +442,97 @@ export class HomeControllerWebSocketServer {
 		}
 
 		return { ok: false, closeCode: 4004, reason: "PROTOCOL_VERSION_UNSUPPORTED" };
+	}
+
+	private buildHttpServer(): HttpServer {
+		if (this.adapter.config.wsUseTls) {
+			try {
+				const certPath = this.adapter.config.wsTlsCertPath;
+				const keyPath = this.adapter.config.wsTlsKeyPath;
+				if (!certPath || !keyPath) {
+					throw new Error("TLS enabled but cert/key paths are missing");
+				}
+				const cert = fs.readFileSync(certPath);
+				const key = fs.readFileSync(keyPath);
+				return createHttpsServer({ cert, key }, (req, res) => void this.handleHttp(req, res));
+			} catch (error) {
+				this.adapter.log.error(`Failed to start HTTPS server: ${(error as Error).message}`);
+				throw error;
+			}
+		}
+
+		return createHttpServer((req, res) => void this.handleHttp(req, res));
+	}
+
+	private async handleHttp(req: IncomingMessage, res: ServerResponse): Promise<void> {
+		if (req.url?.startsWith("/token") && req.method === "POST") {
+			await this.handleTokenRequest(req, res);
+			return;
+		}
+
+		res.statusCode = 404;
+		res.setHeader("Content-Type", "application/json");
+		res.end(JSON.stringify({ error: "Not found" }));
+	}
+
+	private async handleTokenRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+		if ((this.adapter.config.authMode ?? "none") !== "token") {
+			res.setHeader("Content-Type", "application/json");
+			res.statusCode = 400;
+			res.end(JSON.stringify({ error: "Token mode disabled" }));
+			return;
+		}
+
+		let body = "";
+		await new Promise<void>((resolve, reject) => {
+			req.on("data", (chunk: Buffer) => {
+				body += chunk.toString("utf8");
+				if (body.length > 10240) {
+					reject(new Error("Body too large"));
+				}
+			});
+			req.on("end", () => resolve());
+			req.on("error", reject);
+		}).catch((err: Error) => {
+			this.adapter.log.warn(`Failed to read token request: ${err.message}`);
+		});
+
+		res.setHeader("Content-Type", "application/json");
+
+		if (!body) {
+			res.statusCode = 400;
+			res.end(JSON.stringify({ error: "Empty body" }));
+			return;
+		}
+
+		let parsed: any;
+		try {
+			parsed = JSON.parse(body);
+		} catch {
+			res.statusCode = 400;
+			res.end(JSON.stringify({ error: "Invalid JSON" }));
+			return;
+		}
+
+		const username = parsed.username as string;
+		const password = parsed.password as string;
+		const ttl = parsed.ttlSeconds as number | undefined;
+
+		if (!username || !password) {
+			res.statusCode = 400;
+			res.end(JSON.stringify({ error: "username and password required" }));
+			return;
+		}
+
+		const result = await this.authService.issueTokenForUser(username, password, ttl);
+		if (!result.ok) {
+			res.statusCode = 401;
+			res.end(JSON.stringify({ error: result.reason ?? "AUTH_FAILED" }));
+			return;
+		}
+
+		res.statusCode = 200;
+		res.end(JSON.stringify({ token: result.token, expiresAt: result.expiresAt }));
 	}
 
 	/**

@@ -354,6 +354,8 @@ export interface ConnectedClient {
 	id: string;
 	/** Client-provided name */
 	name: string;
+	/** Authenticated ioBroker user (token subject) */
+	authUser?: string;
 	/** Client version */
 	version: string;
 	/** Client type */

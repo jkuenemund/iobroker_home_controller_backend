@@ -31,6 +31,64 @@
                     "md": 6,
                     "lg": 4,
                     "help": "Path to cron_scenes jobs folder (default: cron_scenes.0.jobs)"
+                },
+                "authMode": {
+                    "type": "select",
+                    "label": "Authentication mode",
+                    "default": "token",
+                    "options": [
+                        { "label": "Token (recommended)", "value": "token" },
+                        { "label": "None (not recommended)", "value": "none" }
+                    ],
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "help": "Token mode validates signed tokens with the ioBroker secret"
+                },
+                "tokenTtlSeconds": {
+                    "type": "number",
+                    "label": "Token TTL (seconds)",
+                    "default": 3600,
+                    "min": 60,
+                    "max": 86400,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "help": "Validity for issued tokens. Minimum 60 seconds."
+                },
+                "staticToken": {
+                    "type": "text",
+                    "label": "Static token (optional)",
+                    "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "multiline": true,
+                    "help": "Paste a pre-generated signed token to allow headless clients"
+                },
+                "wsUseTls": {
+                    "type": "checkbox",
+                    "label": "Enable TLS (wss://)",
+                    "default": false,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4,
+                    "help": "Enable if you terminate TLS inside the adapter (not needed behind reverse proxy)"
+                },
+                "wsTlsCertPath": {
+                    "type": "text",
+                    "label": "TLS certificate path",
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 6,
+                    "help": "Absolute path to PEM certificate (used when TLS is enabled)"
+                },
+                "wsTlsKeyPath": {
+                    "type": "text",
+                    "label": "TLS key path",
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 6,
+                    "help": "Absolute path to PEM private key (used when TLS is enabled)"
                 }
             }
         }

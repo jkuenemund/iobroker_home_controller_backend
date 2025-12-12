@@ -7,6 +7,14 @@ declare global {
 			basePath: string;
 			wsPort: number;
 			scenesPath: string;
+			authMode?: "none" | "basic" | "token";
+			authUser?: string;
+			authPassword?: string;
+			tokenTtlSeconds?: number;
+			staticToken?: string;
+			wsUseTls?: boolean;
+			wsTlsCertPath?: string;
+			wsTlsKeyPath?: string;
 		}
 	}
 }

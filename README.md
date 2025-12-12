@@ -20,7 +20,7 @@ Backend adapter for the Home Controller system. Provides device management and W
 - **Admin UI**: Two separate interfaces for different purposes
   - **Adapter Configuration** (`index_m.html`): React-based settings interface
   - **Sidebar Tab** (`tab_m.html`): Standalone management interface accessible from the ioBroker sidebar
-- **WebSocket Server**: Real-time communication with mobile apps (planned)
+- **WebSocket Server**: Echtzeit-Kommunikation mit Token-Auth (Bearer/JWT-ähnlich) und optional TLS (`wss://`)
 - **Compatibility Mode**: Works with existing device configurations
 
 ### Admin UI Pages
@@ -43,6 +43,13 @@ This adapter provides two separate admin interfaces:
   - Real-time connection status
   - Device overview and management (planned)
   - Direct access without navigating to adapter settings
+
+### Authentication & TLS
+- Default auth mode is **token**: the adapter verifies signed tokens using the ioBroker `system.config.native.secret`.
+- Clients can obtain a token via `POST /token` on the WebSocket port (JSON: `{ "username": "<iob-user>", "password": "<pass>", "ttlSeconds": 3600 }`). Response: `{ "token": "...", "expiresAt": 1700000000 }`.
+- Clients present the token via `Authorization: Bearer <token>` or `?token=<token>` during the WebSocket upgrade.
+- Optional static token: paste a pre-generated signed token into the adapter config for headless clients.
+- TLS (`wss://`) is optional; enable it only if you terminate TLS inside the adapter. Behind VPN or reverse proxy `ws://` is sufficient.
 
 ## Developer manual
 This section is intended for the developer. It can be deleted later.
@@ -153,7 +160,7 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 -->
 
 ### **WORK IN PROGRESS**
-* (prof) initial release
+* (prof) add token-based WebSocket auth, optional TLS, and `/token` issuance endpoint
 
 ## License
 MIT License

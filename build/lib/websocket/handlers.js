@@ -42,6 +42,7 @@ function handleRegister(ctx, ws, message) {
     ctx.sendError(ws, message.id, import_types.ErrorCodes.RESYNC_REQUIRED, "Snapshot required; lastSeqSeen stale");
   }
   const clientId = (0, import_uuid.v4)();
+  const existing = ctx.clients.get(ws);
   const client = {
     id: clientId,
     name: clientName || "Unknown",
@@ -49,7 +50,8 @@ function handleRegister(ctx, ws, message) {
     clientType: clientType || "other",
     connectedAt: /* @__PURE__ */ new Date(),
     isRegistered: true,
-    recentRequests: []
+    recentRequests: [],
+    authUser: existing == null ? void 0 : existing.authUser
   };
   ctx.clients.set(ws, client);
   ctx.subscriptions.setDefault(ws);

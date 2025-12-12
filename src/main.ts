@@ -53,6 +53,7 @@ class HomeControllerBackend extends utils.Adapter {
 				const clientInfo = clients.map((c) => ({
 					id: c.id,
 					name: c.name,
+					authUser: c.authUser,
 					version: c.version,
 					clientType: c.clientType,
 					connectedAt: c.connectedAt.toISOString(),
@@ -65,7 +66,7 @@ class HomeControllerBackend extends utils.Adapter {
 				this.setStateAsync("info.connectedClients", JSON.stringify(clientInfo), true);
 			});
 
-			this.wsServer.start();
+			await this.wsServer.start();
 			this.log.info("Home Controller Backend ready");
 		} catch (error) {
 			this.log.error(`Failed to start WebSocket server: ${(error as Error).message}`);

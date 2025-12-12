@@ -270,6 +270,7 @@ function updateClientsDisplay(clientsJson) {
 				client.clientType === "mobile" ? "📱" : client.clientType === "web" ? "🌐" : client.clientType === "desktop" ? "💻" : "🔌";
 
 			const logCount = client.recentRequests?.length || 0;
+			const authUser = client.authUser ? client.authUser : "n/a";
 			const logsHtml =
 				client.recentRequests && client.recentRequests.length > 0
 					? client.recentRequests
@@ -295,6 +296,7 @@ function updateClientsDisplay(clientsJson) {
                         <div class="client-badge">
                             <span class="client-icon">${icon}</span>
                             <span class="client-name">${client.name}</span>
+                            <span class="client-auth">user: ${authUser}</span>
                             <span class="client-version">v${client.version}</span>
                             <span class="client-logs-toggle" onclick="toggleLogs(${idx})" title="Show request logs">
                                 📋 Logs (${logCount})

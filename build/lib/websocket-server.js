@@ -1,7 +1,9 @@
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -15,6 +17,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var websocket_server_exports = {};
 __export(websocket_server_exports, {
@@ -23,6 +33,9 @@ __export(websocket_server_exports, {
 });
 module.exports = __toCommonJS(websocket_server_exports);
 var import_ws = require("ws");
+var import_http = require("http");
+var import_https = require("https");
+var import_fs = __toESM(require("fs"));
 var import_snapshot_service = require("./services/snapshot-service");
 var import_types = require("./websocket/types");
 var import_routes = require("./websocket/routes");
@@ -30,9 +43,11 @@ var import_state_change = require("./websocket/state-change");
 var import_subscriptions = require("./websocket/subscriptions");
 var import_codec = require("./websocket/codec");
 var import_room_metrics = require("./websocket/room-metrics");
+var import_auth = require("./websocket/auth");
 var import_types2 = require("./websocket/types");
 class HomeControllerWebSocketServer {
   wss = null;
+  server = null;
   clients = /* @__PURE__ */ new Map();
   adapter;
   serverVersion = "0.0.1";
@@ -46,6 +61,7 @@ class HomeControllerWebSocketServer {
   socketMeta = /* @__PURE__ */ new WeakMap();
   subscriptions;
   onClientChangeCallback = null;
+  authService;
   // Map stateId -> list of capabilities that use it
   stateChangeManager;
   roomMetricsManager;
@@ -72,6 +88,7 @@ class HomeControllerWebSocketServer {
       subscriptions: this.subscriptions,
       send: (ws, msg) => this.send(ws, msg)
     });
+    this.authService = new import_auth.AuthService(adapter);
   }
   /**
    * Set callback for when clients connect/disconnect
@@ -90,9 +107,11 @@ class HomeControllerWebSocketServer {
   /**
    * Start the WebSocket server
    */
-  start() {
+  async start() {
+    await this.authService.init();
+    this.server = this.buildHttpServer();
     this.wss = new import_ws.WebSocketServer({
-      port: this.adapter.config.wsPort,
+      server: this.server,
       perMessageDeflate: true
     });
     this.wss.on("connection", (ws, req) => {
@@ -103,7 +122,7 @@ class HomeControllerWebSocketServer {
         ws.close((_b = auth.closeCode) != null ? _b : 4001, (_c = auth.reason) != null ? _c : "AUTH_FAILED");
         return;
       }
-      this.handleConnection(ws, req);
+      this.handleConnection(ws, req, auth.user);
     });
     void this.stateChangeManager.subscribeToAllStates();
     void this.roomMetricsManager.subscribeToAllMetrics();
@@ -111,7 +130,10 @@ class HomeControllerWebSocketServer {
       this.adapter.log.error(`WebSocket server error: ${error.message}`);
     });
     this.heartbeatInterval = setInterval(() => this.checkHeartbeats(), this.pingIntervalMs);
-    this.adapter.log.info(`WebSocket server started on port ${this.adapter.config.wsPort}`);
+    this.server.listen(this.adapter.config.wsPort, () => {
+      const scheme = this.adapter.config.wsUseTls ? "wss" : "ws";
+      this.adapter.log.info(`WebSocket server started on ${scheme}://0.0.0.0:${this.adapter.config.wsPort}`);
+    });
   }
   /**
    * Handle state change from adapter
@@ -136,6 +158,10 @@ class HomeControllerWebSocketServer {
       this.wss.close();
       this.wss = null;
       this.adapter.log.info("WebSocket server stopped");
+    }
+    if (this.server) {
+      this.server.close();
+      this.server = null;
     }
   }
   /**
@@ -166,7 +192,7 @@ class HomeControllerWebSocketServer {
   /**
    * Handle new WebSocket connection
    */
-  handleConnection(ws, _req) {
+  handleConnection(ws, _req, authUser) {
     this.adapter.log.debug("New WebSocket connection");
     this.socketMeta.set(ws, { isAlive: true });
     ws.on("pong", () => {
@@ -182,7 +208,8 @@ class HomeControllerWebSocketServer {
       clientType: "",
       connectedAt: /* @__PURE__ */ new Date(),
       isRegistered: false,
-      recentRequests: []
+      recentRequests: [],
+      authUser
     });
     ws.on("message", (data) => {
       this.handleMessage(ws, data);
@@ -333,10 +360,18 @@ class HomeControllerWebSocketServer {
    * Authenticate incoming connection (Basic or none)
    */
   authenticate(req) {
-    var _a;
+    var _a, _b;
     const mode = (_a = this.adapter.config.authMode) != null ? _a : "none";
     if (mode === "none") {
       return { ok: true };
+    }
+    if (mode === "token") {
+      const result = this.authService.authenticateUpgrade(req);
+      if (result.ok) {
+        return { ok: true, user: result.user };
+      }
+      const closeCode = result.reason === "TOKEN_EXPIRED" ? 4002 : 4001;
+      return { ok: false, closeCode, reason: (_b = result.reason) != null ? _b : "AUTH_FAILED" };
     }
     if (mode === "basic") {
       const header = req.headers.authorization;
@@ -363,6 +398,86 @@ class HomeControllerWebSocketServer {
       return { ok: true };
     }
     return { ok: false, closeCode: 4004, reason: "PROTOCOL_VERSION_UNSUPPORTED" };
+  }
+  buildHttpServer() {
+    if (this.adapter.config.wsUseTls) {
+      try {
+        const certPath = this.adapter.config.wsTlsCertPath;
+        const keyPath = this.adapter.config.wsTlsKeyPath;
+        if (!certPath || !keyPath) {
+          throw new Error("TLS enabled but cert/key paths are missing");
+        }
+        const cert = import_fs.default.readFileSync(certPath);
+        const key = import_fs.default.readFileSync(keyPath);
+        return (0, import_https.createServer)({ cert, key }, (req, res) => void this.handleHttp(req, res));
+      } catch (error) {
+        this.adapter.log.error(`Failed to start HTTPS server: ${error.message}`);
+        throw error;
+      }
+    }
+    return (0, import_http.createServer)((req, res) => void this.handleHttp(req, res));
+  }
+  async handleHttp(req, res) {
+    var _a;
+    if (((_a = req.url) == null ? void 0 : _a.startsWith("/token")) && req.method === "POST") {
+      await this.handleTokenRequest(req, res);
+      return;
+    }
+    res.statusCode = 404;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Not found" }));
+  }
+  async handleTokenRequest(req, res) {
+    var _a, _b;
+    if (((_a = this.adapter.config.authMode) != null ? _a : "none") !== "token") {
+      res.setHeader("Content-Type", "application/json");
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "Token mode disabled" }));
+      return;
+    }
+    let body = "";
+    await new Promise((resolve, reject) => {
+      req.on("data", (chunk) => {
+        body += chunk.toString("utf8");
+        if (body.length > 10240) {
+          reject(new Error("Body too large"));
+        }
+      });
+      req.on("end", () => resolve());
+      req.on("error", reject);
+    }).catch((err) => {
+      this.adapter.log.warn(`Failed to read token request: ${err.message}`);
+    });
+    res.setHeader("Content-Type", "application/json");
+    if (!body) {
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "Empty body" }));
+      return;
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "Invalid JSON" }));
+      return;
+    }
+    const username = parsed.username;
+    const password = parsed.password;
+    const ttl = parsed.ttlSeconds;
+    if (!username || !password) {
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "username and password required" }));
+      return;
+    }
+    const result = await this.authService.issueTokenForUser(username, password, ttl);
+    if (!result.ok) {
+      res.statusCode = 401;
+      res.end(JSON.stringify({ error: (_b = result.reason) != null ? _b : "AUTH_FAILED" }));
+      return;
+    }
+    res.statusCode = 200;
+    res.end(JSON.stringify({ token: result.token, expiresAt: result.expiresAt }));
   }
   /**
    * Heartbeat loop: ping and close idle sockets

@@ -13,14 +13,20 @@ export type AdapterInterface = {
 		basePath: string;
 		wsPort: number;
 		scenesPath: string;
-		authMode?: "none" | "basic";
+		authMode?: "none" | "basic" | "token";
 		authUser?: string;
 		authPassword?: string;
+		tokenTtlSeconds?: number;
+		staticToken?: string;
+		wsUseTls?: boolean;
+		wsTlsCertPath?: string;
+		wsTlsKeyPath?: string;
 		defaultSubscription?: "all" | "none";
 		maxEventsPerSecond?: number;
 	};
 	getForeignStatesAsync: ioBroker.Adapter["getForeignStatesAsync"];
 	getForeignStateAsync: ioBroker.Adapter["getForeignStateAsync"];
+	getForeignObjectAsync?: ioBroker.Adapter["getForeignObjectAsync"];
 	subscribeForeignStates: ioBroker.Adapter["subscribeForeignStates"];
 	delForeignObjectAsync: ioBroker.Adapter["delForeignObjectAsync"];
 	extendForeignObjectAsync: ioBroker.Adapter["extendForeignObjectAsync"];
@@ -29,5 +35,6 @@ export type AdapterInterface = {
 		state: ioBroker.SettableState | ioBroker.State | ioBroker.StateValue,
 		ack?: boolean,
 	) => ioBroker.SetStatePromise;
+	checkPasswordAsync: ioBroker.Adapter["checkPasswordAsync"];
 };
 

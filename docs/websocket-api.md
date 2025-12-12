@@ -3,13 +3,28 @@
 Ziel: stabile, WS-first Kommunikation zwischen Adapter und Flutter-App mit klarer Auth-, Heartbeat-, Snapshot- und Delta-Story. Diese Version integriert die App-Review-Punkte aus `iobroker_home_controller/specs/006-websocket-adapter/ws-review-and-proposal.md`.
 
 ## 1. Verbindung & Auth
-- URL: `wss://<host>:<port>/ws/iobroker` (Standardport 8082, konfigurierbar). HTTP-Upgrade auf demselben Port wie Adapter-Webserver.
-- TLS: Self-signed erlaubt; bei Fingerprint-/Zertifikatsfehler Close-Code **4006 CERT_ERROR**.
-- Auth: genau ein Verfahren aktiv
-  - Bevorzugt: **Basic Auth** im Upgrade-Request (über `Authorization: Basic ...`).
-  - Alternative: vorhandenes Session-Cookie aus vorgelagertem Login (`POST /login`) wird akzeptiert.
-  - Query-Token nur falls explizit konfiguriert.
-- Bei Auth-Fehler: Close 4001 AUTH_FAILED (oder 4002 TOKEN_EXPIRED).
+- URL: `ws://<host>:<port>` (Standardport 8082, konfigurierbar). Optional `wss://` wenn TLS im Adapter aktiviert ist – hinter VPN/Reverse-Proxy reicht `ws://`.
+- TLS: nur wenn in der Adapter-Konfiguration aktiviert und Cert/Key angegeben. Self-signed möglich.
+- Auth: Standard **Token** (signed mit ioBroker `system.config.native.secret`)
+  - Token-Transport: `Authorization: Bearer <token>` **oder** Query `?token=<token>`.
+  - Token erhalten via `POST /token` auf demselben Port (JSON: `{ "username": "...", "password": "...", "ttlSeconds": 3600 }`).
+  - Optional: statisches, vorkonfiguriertes Token in der Adapter-Konfiguration (muss signiert sein).
+- Bei Auth-Fehler: Close 4001 AUTH_FAILED, bei abgelaufenem Token 4002 TOKEN_EXPIRED.
+
+### Sequence (Token + WebSocket)
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Adapter (HTTP/WS)
+
+    C->>A: POST /token {username,password,ttlSeconds?}
+    A-->>C: 200 {token, expiresAt} (signed with ioBroker secret)
+    C->>A: WS Upgrade ws(s)://host:port<br/>Authorization: Bearer <token>
+    A-->>C: 101 Switching Protocols (if token valid)
+    C->>A: register {clientName, clientVersion, ...}
+    A-->>C: registered + initialSnapshot
+    A-->>C: stateChange / roomMetrics updates (live)
+```
 
 ## 2. Heartbeat & Lifecycle
 - Ping/Pong: Server sendet Ping alle **25–30s**; erwartet Pong innerhalb **10s**. Bei Timeout Close 4008 IDLE_TIMEOUT.
@@ -191,9 +206,9 @@ Alle Nachrichten folgen diesem Schema:
 - `setState` wird gegen bekannte Devices/Capabilities/States geprüft; bei unbekannt -> `PERMISSION_DENIED`.
 - Payload-Validation via Ajv; ungültige Payload -> `INVALID_PAYLOAD`.
 
-### Auth & Transport
-- Auth-Modus: aktuell Basic Auth (sofern konfiguriert) oder none. Session-Cookie kann alternativ genutzt werden, aber Standard ist Basic oder offen.
-- TLS: Self-signed erlaubt; bei Zertifikatsfehler Close-Code 4006 vorgesehen. Standard-Port 8082 (ws), wss bei TLS.
+- ### Auth & Transport
+- Auth-Modus: Token (Bearer oder `?token=`). Token-Signatur basiert auf ioBroker-Secret; `/token` stellt kurzlebige Tokens per ioBroker-User/Pass aus. Optional statisches Token aus der Adapter-Konfiguration.
+- TLS: optional; hinter VPN/Proxy meist `ws://`. Standard-Port 8082, wss nur wenn Cert/Key hinterlegt.
 - Heartbeat: Ping/Pong ~28s/10s Timeout, Close 4008 bei Idle.
 
 ### Re-Sync

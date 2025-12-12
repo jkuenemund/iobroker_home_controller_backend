@@ -63,7 +63,7 @@ class HomeControllerBackend extends utils.Adapter {
 						id: r.id,
 					})),
 				}));
-				this.setStateAsync("info.connectedClients", JSON.stringify(clientInfo), true);
+				void this.setStateAsync("info.connectedClients", JSON.stringify(clientInfo), true);
 			});
 
 			await this.wsServer.start();
@@ -76,7 +76,7 @@ class HomeControllerBackend extends utils.Adapter {
 	/**
 	 * Is called when adapter shuts down - callback has to be called under any circumstances!
 	 *
-	 * @param callback
+	 * @param callback - Callback to signal completion
 	 */
 	private onUnload(callback: () => void): void {
 		try {
@@ -99,8 +99,8 @@ class HomeControllerBackend extends utils.Adapter {
 	/**
 	 * Is called if a subscribed state changes
 	 *
-	 * @param id
-	 * @param state
+	 * @param id - State ID that changed
+	 * @param state - New state value or null if deleted
 	 */
 	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
 		if (state) {
@@ -114,7 +114,7 @@ class HomeControllerBackend extends utils.Adapter {
 	/**
 	 * Handle messages from admin UI
 	 *
-	 * @param obj
+	 * @param obj - Message object from admin UI
 	 */
 	private onMessage(obj: ioBroker.Message): void {
 		if (typeof obj === "object" && obj.message) {

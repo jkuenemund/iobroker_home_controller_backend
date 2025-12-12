@@ -28,14 +28,25 @@ interface MetricRef {
 	type?: string;
 }
 
+/**
+ * Manages room metrics subscriptions and state change notifications
+ */
 export class RoomMetricsManager {
 	private readonly deps: RoomMetricsDeps;
 	private readonly stateToMetric: Map<string, MetricRef> = new Map();
 
+	/**
+	 * Create a new RoomMetricsManager instance
+	 *
+	 * @param deps - Dependencies required for room metrics management
+	 */
 	constructor(deps: RoomMetricsDeps) {
 		this.deps = deps;
 	}
 
+	/**
+	 * Subscribe to all room metric states from the snapshot service
+	 */
 	public async subscribeToAllMetrics(): Promise<void> {
 		try {
 			const rooms = await this.deps.snapshotService.getRooms();
@@ -75,6 +86,12 @@ export class RoomMetricsManager {
 		}
 	}
 
+	/**
+	 * Handle state change for a room metric
+	 *
+	 * @param id - State ID that changed
+	 * @param state - New state value
+	 */
 	public handleStateChange(id: string, state: ioBroker.State): void {
 		const ref = this.stateToMetric.get(id);
 		if (!ref) {

@@ -58,15 +58,19 @@ class SubscriptionRegistry {
     });
   }
   diff(current, remove) {
-    if (!current) return void 0;
-    if (!remove || remove.length === 0) return current;
+    if (!current) {
+      return void 0;
+    }
+    if (!remove || remove.length === 0) {
+      return current;
+    }
     const set = new Set(current);
     for (const item of remove) {
       set.delete(item);
     }
     return Array.from(set);
   }
-  shouldDeliver(ws, event, clients) {
+  shouldDeliver(ws, event, _clients) {
     const filters = this.filters.get(ws);
     if (!filters && this.deps.defaultSubscription === "none") {
       return false;

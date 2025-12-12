@@ -69,7 +69,7 @@ export class SubscriptionRegistry {
 		return Array.from(set);
 	}
 
-	public shouldDeliver(ws: WebSocket, event: StateChangeMessage, clients: Map<WebSocket, ConnectedClient>): boolean {
+	public shouldDeliver(ws: WebSocket, event: StateChangeMessage, _clients: Map<WebSocket, ConnectedClient>): boolean {
 		const filters = this.filters.get(ws);
 		// defaultSubscription=none and no filters => deliver nothing
 		if (!filters && this.deps.defaultSubscription === "none") {

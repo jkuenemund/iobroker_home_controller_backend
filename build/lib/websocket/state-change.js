@@ -73,13 +73,9 @@ class StateChangeManager {
     }
   }
   async subscribeToSceneChanges() {
-    try {
-      const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
-      this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
-      this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);
-    } catch (error) {
-      this.deps.adapter.log.error(`Failed to subscribe to scene changes: ${error.message}`);
-    }
+    const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
+    this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
+    this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);
   }
   handleStateChange(id, state) {
     const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
@@ -94,7 +90,7 @@ class StateChangeManager {
       }
     }
   }
-  handleSceneStateChange(id, state) {
+  handleSceneStateChange(id, _state) {
     if (id.endsWith(".trigger")) {
       return;
     }

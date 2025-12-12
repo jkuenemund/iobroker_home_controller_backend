@@ -9,7 +9,7 @@ function renderDeviceRows(states, targetPath, columns, tableBody) {
 			try {
 				data = val ? JSON.parse(val) : {};
 			} catch (e) {
-				console.warn("Failed to parse JSON for", id, val);
+				console.warn("Failed to parse JSON for", id, val, e);
 				data = { name: "Invalid JSON" };
 			}
 

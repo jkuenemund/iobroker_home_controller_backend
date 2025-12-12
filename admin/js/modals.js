@@ -118,7 +118,7 @@ function exportData() {
 				try {
 					items[relativeId] = val ? JSON.parse(val) : {};
 				} catch (e) {
-					console.warn("Failed to parse JSON for export:", id);
+					console.warn("Failed to parse JSON for export:", id, val, e);
 					items[relativeId] = { _rawValue: val };
 				}
 			});

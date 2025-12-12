@@ -10,7 +10,6 @@ import type {
 } from "./types";
 import type { SnapshotService } from "../services/snapshot-service";
 import type { SubscriptionRegistry } from "./subscriptions";
-import { applySubscriptions } from "./handlers";
 import type { AdapterInterface } from "./adapter-interface";
 
 export interface StateChangeDeps {
@@ -77,24 +76,20 @@ export class StateChangeManager {
 			this.deps.adapter.log.info(`Subscribed to ${statesToSubscribe.size} device states for real-time updates`);
 
 			// Subscribe to scene changes
-			await this.subscribeToSceneChanges();
+			this.subscribeToSceneChanges();
 		} catch (error) {
 			this.deps.adapter.log.error(`Failed to subscribe to states: ${(error as Error).message}`);
 		}
 	}
 
-	private async subscribeToSceneChanges(): Promise<void> {
-		try {
-			const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
+	private subscribeToSceneChanges(): void {
+		const scenesPath = this.deps.adapter.config.scenesPath || "cron_scenes.0.jobs";
 
-			// Subscribe to all scene states with wildcard
-			// This will catch: cron_scenes.0.jobs.*, cron_scenes.0.jobs.*.status, cron_scenes.0.jobs.*.trigger
-			this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
+		// Subscribe to all scene states with wildcard
+		// This will catch: cron_scenes.0.jobs.*, cron_scenes.0.jobs.*.status, cron_scenes.0.jobs.*.trigger
+		this.deps.adapter.subscribeForeignStates(`${scenesPath}.*`);
 
-			this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);
-		} catch (error) {
-			this.deps.adapter.log.error(`Failed to subscribe to scene changes: ${(error as Error).message}`);
-		}
+		this.deps.adapter.log.info(`Subscribed to scene changes at ${scenesPath}.*`);
 	}
 
 	public handleStateChange(id: string, state: ioBroker.State): void {
@@ -114,7 +109,7 @@ export class StateChangeManager {
 		}
 	}
 
-	private handleSceneStateChange(id: string, state: ioBroker.State): void {
+	private handleSceneStateChange(id: string, _state: ioBroker.State): void {
 		// Ignore .trigger states (they're just momentary triggers)
 		if (id.endsWith(".trigger")) {
 			return;

@@ -118,12 +118,7 @@ async function handleGetRooms(ctx, ws, message) {
     ctx.send(ws, response);
     ctx.adapter.log.debug(`Sent ${Object.keys(rooms).length} rooms to ${client.name}`);
   } catch (error) {
-    ctx.sendError(
-      ws,
-      message.id,
-      import_types.ErrorCodes.INTERNAL_ERROR,
-      `Failed to fetch rooms: ${error.message}`
-    );
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INTERNAL_ERROR, `Failed to fetch rooms: ${error.message}`);
   }
 }
 async function handleGetSnapshot(ctx, ws, message) {
@@ -274,12 +269,7 @@ async function handleSetState(ctx, ws, message) {
     await ctx.adapter.setForeignStateAsync(message.payload.state, value, (_b = message.payload.ack) != null ? _b : false);
     ctx.send(ws, { type: "ack", id: message.id });
   } catch (error) {
-    ctx.sendError(
-      ws,
-      message.id,
-      import_types.ErrorCodes.INTERNAL_ERROR,
-      `Failed to set state: ${error.message}`
-    );
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INTERNAL_ERROR, `Failed to set state: ${error.message}`);
   }
 }
 async function handleTriggerScene(ctx, ws, message) {
@@ -339,12 +329,7 @@ async function handleSaveScene(ctx, ws, message) {
     ctx.send(ws, { type: "ack", id: message.id });
     ctx.adapter.log.info(`Saved scene ${sceneId} via WebSocket from ${client.name}`);
   } catch (error) {
-    ctx.sendError(
-      ws,
-      message.id,
-      import_types.ErrorCodes.INTERNAL_ERROR,
-      `Failed to save scene: ${error.message}`
-    );
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INTERNAL_ERROR, `Failed to save scene: ${error.message}`);
   }
 }
 async function handleDeleteScene(ctx, ws, message) {
@@ -364,12 +349,7 @@ async function handleDeleteScene(ctx, ws, message) {
     ctx.send(ws, { type: "ack", id: message.id });
     ctx.adapter.log.info(`Deleted scene ${sceneId} via WebSocket from ${client.name}`);
   } catch (error) {
-    ctx.sendError(
-      ws,
-      message.id,
-      import_types.ErrorCodes.INTERNAL_ERROR,
-      `Failed to delete scene: ${error.message}`
-    );
+    ctx.sendError(ws, message.id, import_types.ErrorCodes.INTERNAL_ERROR, `Failed to delete scene: ${error.message}`);
   }
 }
 async function sendInitialSnapshot(ctx, ws) {

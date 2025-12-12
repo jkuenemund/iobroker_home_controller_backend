@@ -2,7 +2,6 @@ let socket;
 const statusEl = document.getElementById("status");
 const basePathEl = document.getElementById("basePath");
 const tableBody = document.querySelector("#deviceTable tbody");
-const metricsTimerEl = document.getElementById("metricsTimer");
 
 let currentBasePath = "";
 let currentScenesPath = "";

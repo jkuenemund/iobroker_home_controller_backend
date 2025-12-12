@@ -33,10 +33,14 @@ class RoomMetricsManager {
       this.stateToMetric.clear();
       const stateIds = /* @__PURE__ */ new Set();
       for (const [roomId, room] of Object.entries(rooms)) {
-        if (!room.metrics) continue;
+        if (!room.metrics) {
+          continue;
+        }
         for (const metricRaw of room.metrics) {
           const metric = metricRaw;
-          if (!metric.state) continue;
+          if (!metric.state) {
+            continue;
+          }
           const metricId = metric.id || metric.state || metric.type || `${roomId}_${Math.random()}`;
           this.stateToMetric.set(metric.state, {
             roomId,
@@ -58,7 +62,9 @@ class RoomMetricsManager {
   }
   handleStateChange(id, state) {
     const ref = this.stateToMetric.get(id);
-    if (!ref) return;
+    if (!ref) {
+      return;
+    }
     const ts = state.ts ? new Date(state.ts).toISOString() : (/* @__PURE__ */ new Date()).toISOString();
     const status = state.val === void 0 || state.val === null ? "nodata" : "ok";
     const metricData = {

@@ -25,24 +25,46 @@ import type { SnapshotService } from "../services/snapshot-service";
 import type { SubscriptionRegistry } from "./subscriptions";
 import type { AdapterInterface } from "./adapter-interface";
 
+/**
+ * Context object passed to all handler functions
+ */
 export interface HandlerContext {
+	/** Adapter interface with logging and state management methods */
 	adapter: Pick<
 		AdapterInterface,
 		"log" | "config" | "setForeignStateAsync" | "delForeignObjectAsync" | "extendForeignObjectAsync"
 	>;
+	/** Map of connected WebSocket clients */
 	clients: Map<WebSocket, ConnectedClient>;
+	/** Snapshot service for fetching device/room data */
 	snapshotService: SnapshotService;
+	/** Function to get next sequence number */
 	nextSeq: () => number;
+	/** Function to get current sequence number */
 	getSeq: () => number;
+	/** Server version string */
 	serverVersion: string;
+	/** Protocol version string */
 	protocolVersion: string;
+	/** Schema version string */
 	schemaVersion: string;
+	/** Subscription registry for managing client subscriptions */
 	subscriptions: SubscriptionRegistry;
+	/** Function to send a message to a WebSocket client */
 	send: (ws: WebSocket, message: BaseMessage) => void;
+	/** Function to send an error message to a WebSocket client */
 	sendError: (ws: WebSocket, id: string | undefined, code: string, message: string) => void;
+	/** Function to notify about client connection changes */
 	notifyClientChange: () => void;
 }
 
+/**
+ * Handle client registration message
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Registration message
+ */
 export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: BaseMessage): void {
 	const regMsg = message as BaseMessage & {
 		payload: any;
@@ -95,6 +117,13 @@ export function handleRegister(ctx: HandlerContext, ws: WebSocket, message: Base
 	ctx.notifyClientChange();
 }
 
+/**
+ * Handle get devices request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Request message
+ */
 export async function handleGetDevices(ctx: HandlerContext, ws: WebSocket, message: BaseMessage): Promise<void> {
 	const client = ctx.clients.get(ws);
 	if (!client?.isRegistered) {
@@ -121,6 +150,13 @@ export async function handleGetDevices(ctx: HandlerContext, ws: WebSocket, messa
 	}
 }
 
+/**
+ * Handle get rooms request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Get rooms request message
+ */
 export async function handleGetRooms(ctx: HandlerContext, ws: WebSocket, message: GetRoomsRequest): Promise<void> {
 	const client = ctx.clients.get(ws);
 	if (!client?.isRegistered) {
@@ -142,6 +178,13 @@ export async function handleGetRooms(ctx: HandlerContext, ws: WebSocket, message
 	}
 }
 
+/**
+ * Handle get snapshot request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Get snapshot request message
+ */
 export async function handleGetSnapshot(
 	ctx: HandlerContext,
 	ws: WebSocket,
@@ -173,6 +216,13 @@ export async function handleGetSnapshot(
 	}
 }
 
+/**
+ * Handle help request - return API documentation
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Help request message
+ */
 export function handleHelp(ctx: HandlerContext, ws: WebSocket, message: HelpRequest): void {
 	const response: HelpResponse = {
 		type: "help",
@@ -251,6 +301,13 @@ export function handleHelp(ctx: HandlerContext, ws: WebSocket, message: HelpRequ
 	ctx.send(ws, response);
 }
 
+/**
+ * Handle subscribe/unsubscribe request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Subscribe or unsubscribe request message
+ */
 export function handleSubscribe(
 	ctx: HandlerContext,
 	ws: WebSocket,
@@ -271,6 +328,13 @@ export function handleSubscribe(
 	}
 }
 
+/**
+ * Apply subscriptions to determine which clients should receive a state change event
+ *
+ * @param ctx - Handler context
+ * @param event - State change event message
+ * @returns Array of [WebSocket, StateChangeMessage] tuples for delivery
+ */
 export function applySubscriptions(
 	ctx: HandlerContext,
 	event: StateChangeMessage,
@@ -284,6 +348,13 @@ export function applySubscriptions(
 	return deliveries;
 }
 
+/**
+ * Handle set state request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Set state request message
+ */
 export async function handleSetState(ctx: HandlerContext, ws: WebSocket, message: SetStateRequest): Promise<void> {
 	const client = ctx.clients.get(ws);
 	if (!client?.isRegistered) {
@@ -311,6 +382,13 @@ export async function handleSetState(ctx: HandlerContext, ws: WebSocket, message
 	}
 }
 
+/**
+ * Handle trigger scene request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Trigger scene request message
+ */
 export async function handleTriggerScene(
 	ctx: HandlerContext,
 	ws: WebSocket,
@@ -348,7 +426,11 @@ export async function handleTriggerScene(
 }
 
 /**
+ * Handle save scene request
  *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Save scene request message
  */
 export async function handleSaveScene(ctx: HandlerContext, ws: WebSocket, message: SaveSceneRequest): Promise<void> {
 	const client = ctx.clients.get(ws);
@@ -390,6 +472,13 @@ export async function handleSaveScene(ctx: HandlerContext, ws: WebSocket, messag
 	}
 }
 
+/**
+ * Handle delete scene request
+ *
+ * @param ctx - Handler context
+ * @param ws - WebSocket connection
+ * @param message - Delete scene request message
+ */
 export async function handleDeleteScene(
 	ctx: HandlerContext,
 	ws: WebSocket,

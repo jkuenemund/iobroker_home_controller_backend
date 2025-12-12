@@ -1,0 +1,4 @@
+
+> iobroker.home_controller_backend@0.0.2-alpha.0 lint
+> eslint -c eslint.config.mjs .
+

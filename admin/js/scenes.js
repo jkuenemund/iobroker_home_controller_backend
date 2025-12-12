@@ -2,10 +2,10 @@
  * Render scenes table from ioBroker states
  * Expects states from cron_scenes.0.jobs.*
  *
- * @param states
- * @param basePath
- * @param columns
- * @param tableBody
+ * @param states - ioBroker states object containing scene data
+ * @param basePath - Base path prefix for state IDs
+ * @param columns - Array of column definitions to display
+ * @param tableBody - DOM element (tbody) to render rows into
  */
 function renderSceneRows(states, basePath, columns, tableBody) {
 	// Parse scene states - filter out .status and .trigger states
@@ -52,6 +52,7 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 		try {
 			status = typeof statusJson === "string" ? JSON.parse(statusJson) : statusJson;
 		} catch (e) {
+			console.error(`Invalid JSON for scene ${sceneId}:`, e);
 			status = { status: "unknown" };
 		}
 
@@ -72,7 +73,7 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 				case "name":
 					td.textContent = config.name || sceneId;
 					break;
-				case "type":
+				case "type": {
 					const typeIcon =
 						{
 							recurring: "🔄",
@@ -82,6 +83,7 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 						}[config.type] || "❓";
 					td.innerHTML = `${typeIcon} ${config.type || "unknown"}`;
 					break;
+				}
 				case "active":
 					td.innerHTML = config.active
 						? '<span style="color: green;">✓</span>'
@@ -187,7 +189,7 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 /**
  * Toggle scene details visibility
  *
- * @param sceneId
+ * @param sceneId - ID of the scene to toggle details for
  */
 function toggleSceneDetails(sceneId) {
 	const detailsRow = document.getElementById(`scene-details-${sceneId}`);
@@ -205,8 +207,8 @@ function toggleSceneDetails(sceneId) {
 /**
  * Trigger a scene manually
  *
- * @param event
- * @param triggerStateId
+ * @param event - Click event object
+ * @param triggerStateId - State ID to trigger the scene
  */
 function triggerScene(event, triggerStateId) {
 	if (!window.socket) {

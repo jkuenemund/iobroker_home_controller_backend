@@ -24,15 +24,15 @@ function normalizeRoomData(relativeId, data, currentTab) {
 
 	// cache and indexes for updates/subscriptions
 	if (!window.roomMetricsCache) {
-		// @ts-ignore
+		// @ts-expect-error - window properties for room metrics cache
 		window.roomMetricsCache = {};
 	}
 	if (!window.metricOids) {
-		// @ts-ignore
+		// @ts-expect-error - window properties for metric OIDs
 		window.metricOids = new Set();
 	}
 	if (!window.metricStateIndex) {
-		// @ts-ignore
+		// @ts-expect-error - window properties for metric state index
 		window.metricStateIndex = new Map();
 	}
 	// store a shallow copy to keep unit/label/type
@@ -344,27 +344,26 @@ function subscribeMetricStates() {
 }
 
 // expose for app.js
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
+// @ts-expect-error - exposing functions to window for app.js
 window.applyRoomMetricsUpdateBatch = applyRoomMetricsUpdateBatch;
-// @ts-ignore
+// @ts-expect-error - exposing functions to window for app.js
 window.handleMetricStateChange = handleMetricStateChange;
-// @ts-ignore
+// @ts-expect-error - exposing functions to window for app.js
 window.subscribeMetricStates = subscribeMetricStates;
 
 function resetRoomMetricsCaches() {
-	// @ts-ignore
+	// @ts-expect-error - resetting window cache properties
 	window.roomMetricsCache = {};
-	// @ts-ignore
+	// @ts-expect-error - resetting window cache properties
 	window.pendingRoomMetricUpdates = new Map();
-	// @ts-ignore
+	// @ts-expect-error - resetting window cache properties
 	window.metricOids = new Set();
-	// @ts-ignore
+	// @ts-expect-error - resetting window cache properties
 	window.metricStateIndex = new Map();
 }
 
 // expose for app.js
-// @ts-ignore
+// @ts-expect-error - exposing function to window for app.js
 window.resetRoomMetricsCaches = resetRoomMetricsCaches;
 
 function renderRoomRows(states, targetPath, columns, tableBody, currentTab) {
@@ -380,7 +379,7 @@ function renderRoomRows(states, targetPath, columns, tableBody, currentTab) {
 			try {
 				data = val ? JSON.parse(val) : {};
 			} catch (e) {
-				console.warn("Failed to parse JSON for", id, val);
+				console.warn("Failed to parse JSON for", id, val, e);
 				data = { name: "Invalid JSON" };
 			}
 
@@ -417,7 +416,7 @@ function toggleMetrics(iconElement) {
 
 function enqueuePendingMetricUpdate(roomId, update) {
 	if (!window.pendingRoomMetricUpdates) {
-		// @ts-ignore
+		// @ts-expect-error - window properties for pending metric updates
 		window.pendingRoomMetricUpdates = new Map();
 	}
 	const arr = window.pendingRoomMetricUpdates.get(roomId) || [];

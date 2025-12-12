@@ -27,7 +27,7 @@ const registerSchema = {
 	additionalProperties: false,
 } as const;
 
-const simpleTypeSchema = (typeValue: string) =>
+const simpleTypeSchema = (typeValue: string): ValidateFunction =>
 	ajv.compile({
 		type: "object",
 		required: ["type"],

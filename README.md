@@ -154,10 +154,9 @@ The ioBroker.admin interface will then be available at http://localhost:8081/
 Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev-server#command-line) for more details.
 
 ## Changelog
-<!--
-	Placeholder for the next version (at the beginning of the line):
-	### **WORK IN PROGRESS**
--->
+### **WORK IN PROGRESS**
+* fix lint errors
+
 ### 0.0.2-alpha.0 (2025-12-12)
 * (prof) add token-based WebSocket auth, optional TLS, and `/token` issuance endpoint
 

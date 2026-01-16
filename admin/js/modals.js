@@ -5,7 +5,12 @@ function openAddDialog() {
 	const configInput = document.getElementById("itemConfig");
 	const errorEl = document.getElementById("errorMessage");
 
-	title.textContent = currentTab === "devices" ? "Add New Device" : "Add New Room";
+	const titles = {
+		devices: "Add New Device",
+		rooms: "Add New Room",
+		scenes: "Add New Scene",
+	};
+	title.textContent = titles[currentTab] || "Add New Item";
 	idInput.value = "";
 	configInput.value = JSON.stringify(templates[currentTab], null, 2);
 	errorEl.classList.remove("visible");
@@ -54,7 +59,11 @@ function saveNewItem() {
 		return;
 	}
 
-	const stateId = `${currentBasePath}.${currentTab}.${itemId}`;
+	// Use scenesPath for scenes tab, basePath for devices/rooms
+	const stateId =
+		currentTab === "scenes"
+			? `${currentScenesPath || "cron_scenes.0.jobs"}.${itemId}`
+			: `${currentBasePath}.${currentTab}.${itemId}`;
 	const stateValue = JSON.stringify(config);
 
 	console.log("Creating object:", stateId);

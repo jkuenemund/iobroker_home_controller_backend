@@ -217,7 +217,8 @@ class SnapshotService {
             })),
             triggerState: config.triggerState,
             triggerValue: config.triggerValue,
-            debounce: config.debounce
+            debounce: config.debounce,
+            delay: config.delay
           };
         } catch (error) {
           this.adapter.log.warn(`Failed to parse scene config for ${sceneId}: ${error.message}`);

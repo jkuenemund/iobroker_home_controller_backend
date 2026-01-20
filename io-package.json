@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "home_controller_backend",
-    "version": "0.0.4-beta.0",
+    "version": "0.0.4-beta.1",
     "news": {
+      "0.0.4-beta.1": {
+        "en": "Fix repository URLs and update version",
+        "de": "Repository-URLs korrigiert und Version aktualisiert"
+      },
       "0.0.4-beta.0": {
         "en": "Fix repository URLs and update dependencies",
         "de": "Repository-URLs korrigiert und Abhängigkeiten aktualisiert"

@@ -154,6 +154,8 @@ The ioBroker.admin interface will then be available at http://localhost:8081/
 Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev-server#command-line) for more details.
 
 ## Changelog
+### **WORK IN PROGRESS**
+
 ### 0.0.3-beta.0 (2025-01-17)
 * (prof) Add TIMER type support for cron_scenes 0.6.0
 * (prof) Support delay field for TIMER jobs in scene configuration

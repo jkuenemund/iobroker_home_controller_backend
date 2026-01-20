@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "home_controller_backend",
-    "version": "0.0.3-beta.0",
+    "version": "0.0.4-beta.0",
     "news": {
+      "0.0.4-beta.0": {
+        "en": "Fix repository URLs and update dependencies",
+        "de": "Repository-URLs korrigiert und Abhängigkeiten aktualisiert"
+      },
       "0.0.3-beta.0": {
         "en": "Add TIMER type support for cron_scenes 0.6.0 - support for delayed scene execution",
         "de": "TIMER-Type Support für cron_scenes 0.6.0 hinzugefügt - Unterstützung für verzögerte Szenen-Ausführung",
@@ -98,8 +102,8 @@
     "platform": "Javascript/Node.js",
     "icon": "home_controller_backend.png",
     "enabled": true,
-    "extIcon": "https://raw.githubusercontent.com/jkuenemund/ioBroker.home_controller_backend/main/admin/home_controller_backend.png",
-    "readme": "https://github.com/jkuenemund/ioBroker.home_controller_backend/blob/main/README.md",
+    "extIcon": "https://raw.githubusercontent.com/jkuenemund/iobroker_home_controller_backend/main/admin/home_controller_backend.png",
+    "readme": "https://github.com/jkuenemund/iobroker_home_controller_backend/blob/main/README.md",
     "loglevel": "info",
     "tier": 3,
     "mode": "daemon",

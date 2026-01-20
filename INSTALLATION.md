@@ -59,7 +59,7 @@
 
 1. **Package erstellen:**
    ```bash
-   cd /path/to/ioBroker.home_controller_backend
+   cd /path/to/iobroker_home_controller_backend
    npm run build
    npm pack
    ```
@@ -107,4 +107,4 @@ Dieser Fehler sollte nicht mehr auftreten, da `uuid` jetzt in `dependencies` sta
 - `iobroker_home_controller_backend` (mit Unterstrich, alles kleingeschrieben)
 
 Nicht zu verwechseln mit:
-- `ioBroker.home_controller_backend` (mit Punkt, gemischte Groß-/Kleinschreibung)
+- `iobroker_home_controller_backend` (mit Unterstrich, alles kleingeschrieben)

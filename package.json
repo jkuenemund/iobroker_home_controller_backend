@@ -1,13 +1,13 @@
 {
   "name": "iobroker.home_controller_backend",
-  "version": "0.0.3-beta.0",
+  "version": "0.0.4-beta.0",
   "description": "home_controller_backend",
   "author": {
     "name": "prof",
     "email": "jens.kuenemund@gmx.de"
   },
   "contributors": [],
-  "homepage": "https://github.com/jkuenemund/ioBroker.home_controller_backend",
+  "homepage": "https://github.com/jkuenemund/iobroker_home_controller_backend",
   "license": "MIT",
   "keywords": [
     "template",
@@ -17,7 +17,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/jkuenemund/ioBroker.home_controller_backend.git"
+    "url": "https://github.com/jkuenemund/iobroker_home_controller_backend.git"
   },
   "engines": {
     "node": ">= 20"
@@ -76,7 +76,7 @@
     "dev-server": "dev-server"
   },
   "bugs": {
-    "url": "https://github.com/jkuenemund/ioBroker.home_controller_backend/issues"
+    "url": "https://github.com/jkuenemund/iobroker_home_controller_backend/issues"
   },
   "readmeFilename": "README.md"
 }

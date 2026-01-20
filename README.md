@@ -8,7 +8,7 @@
 
 [![NPM](https://nodei.co/npm/iobroker.home_controller_backend.png?downloads=true)](https://nodei.co/npm/iobroker.home_controller_backend/)
 
-**Tests:** ![Test and Release](https://github.com/jkuenemund/ioBroker.home_controller_backend/workflows/Test%20and%20Release/badge.svg)
+**Tests:** ![Test and Release](https://github.com/jkuenemund/iobroker_home_controller_backend/workflows/Test%20and%20Release/badge.svg)
 
 ## home_controller_backend adapter for ioBroker
 
@@ -62,7 +62,7 @@ You can check other adapters for examples or ask in the developer community. Usi
 ### Getting started
 
 You are almost done, only a few steps left:
-1. Create a new repository on GitHub with the name `ioBroker.home_controller_backend`
+1. Create a new repository on GitHub with the name `iobroker_home_controller_backend`
 1. Initialize the current folder as a new git repository:  
 	```bash
 	git init -b main
@@ -71,14 +71,14 @@ You are almost done, only a few steps left:
 	```
 1. Link your local repository with the one on GitHub:  
 	```bash
-	git remote add origin https://github.com/jkuenemund/ioBroker.home_controller_backend
+	git remote add origin https://github.com/jkuenemund/iobroker_home_controller_backend
 	```
 
 1. Push all files to the GitHub repo:  
 	```bash
 	git push origin main
 	```
-1. Add a new secret under https://github.com/jkuenemund/ioBroker.home_controller_backend/settings/secrets. It must be named `AUTO_MERGE_TOKEN` and contain a personal access token with push access to the repository, e.g. yours. You can create a new token under https://github.com/settings/tokens.
+1. Add a new secret under https://github.com/jkuenemund/iobroker_home_controller_backend/settings/secrets. It must be named `AUTO_MERGE_TOKEN` and contain a personal access token with push access to the repository, e.g. yours. You can create a new token under https://github.com/settings/tokens.
 
 1. Head over to [src/main.ts](src/main.ts) and start programming!
 
@@ -155,6 +155,9 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 
 ## Changelog
 ### **WORK IN PROGRESS**
+* (prof) Fix repository URLs in package.json and io-package.json
+* (prof) Update version to 0.0.4-beta.0
+* (prof) Update copyright year to 2026
 
 ### 0.0.3-beta.0 (2025-01-17)
 * (prof) Add TIMER type support for cron_scenes 0.6.0
@@ -172,7 +175,7 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 ## License
 MIT License
 
-Copyright (c) 2025 prof <jens.kuenemund@gmx.de>
+Copyright (c) 2026 prof <jens.kuenemund@gmx.de>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

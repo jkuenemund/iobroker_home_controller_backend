@@ -155,6 +155,7 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 
 ## Changelog
 ### 0.0.2-beta.0 (2025-12-12)
+* pre timer status
 * fix lint errors
 
 ### 0.0.2-alpha.0 (2025-12-12)

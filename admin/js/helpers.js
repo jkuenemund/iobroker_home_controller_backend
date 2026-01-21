@@ -102,6 +102,20 @@ const templates = {
 		icon: "🏠",
 		metrics: [],
 	},
+	scenes: {
+		name: "New Scene",
+		type: "recurring",
+		active: false,
+		cron: "0 7 * * *",
+		targets: [
+			{
+				id: "adapter.0.device.state",
+				value: true,
+				type: "value",
+				description: "Example target",
+			},
+		],
+	},
 };
 
 function validateConfig(type, config) {
@@ -142,6 +156,52 @@ function validateConfig(type, config) {
 		if (config.metrics !== undefined && !Array.isArray(config.metrics)) {
 			errors.push('"metrics" must be an array if provided');
 		}
+	} else if (type === "scenes") {
+		// Basic required fields
+		if (!config.name || typeof config.name !== "string") {
+			errors.push('"name" is required and must be a string');
+		}
+		if (!config.type || typeof config.type !== "string") {
+			errors.push('"type" is required and must be a string (recurring, once, manual, state, timer)');
+		}
+		if (typeof config.active !== "boolean") {
+			errors.push('"active" is required and must be a boolean');
+		}
+		if (!Array.isArray(config.targets)) {
+			errors.push('"targets" is required and must be an array');
+		} else if (config.targets.length === 0) {
+			errors.push('"targets" must contain at least one target');
+		} else {
+			config.targets.forEach((target, i) => {
+				if (!target.id || typeof target.id !== "string") {
+					errors.push(`Target ${i + 1}: "id" is required and must be a string`);
+				}
+				if (target.value === undefined) {
+					errors.push(`Target ${i + 1}: "value" is required`);
+				}
+			});
+		}
+
+		// Type-specific validations
+		const jobType = config.type;
+		if (jobType === "timer") {
+			if (config.delay === undefined || config.delay === null) {
+				errors.push('"delay" is required for timer jobs (in seconds, 1-86400)');
+			} else if (typeof config.delay !== "number") {
+				errors.push('"delay" must be a number');
+			} else if (config.delay < 1 || config.delay > 86400) {
+				errors.push('"delay" must be between 1 and 86400 seconds (1 second to 24 hours)');
+			}
+		} else if (jobType === "recurring" || jobType === "once") {
+			if (!config.cron || typeof config.cron !== "string") {
+				errors.push(`"cron" is required for ${jobType} jobs`);
+			}
+		} else if (jobType === "state") {
+			if (!config.triggerState || typeof config.triggerState !== "string") {
+				errors.push('"triggerState" is required for state jobs');
+			}
+		}
+		// manual jobs don't require additional fields
 	}
 
 	return errors;

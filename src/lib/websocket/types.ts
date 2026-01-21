@@ -239,7 +239,7 @@ export interface RoomsResponse extends BaseMessage {
  */
 export interface SceneConfig {
 	name: string;
-	type: "recurring" | "once" | "manual" | "state";
+	type: "recurring" | "once" | "manual" | "state" | "timer";
 	active: boolean;
 	cron?: string;
 	targets: SceneTarget[];
@@ -250,6 +250,7 @@ export interface SceneConfig {
 	triggerState?: string;
 	triggerValue?: unknown;
 	debounce?: number;
+	delay?: number;
 }
 
 /**

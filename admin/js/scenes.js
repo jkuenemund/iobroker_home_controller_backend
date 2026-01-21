@@ -43,6 +43,10 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 		let config;
 		try {
 			config = typeof configJson === "string" ? JSON.parse(configJson) : configJson;
+			// Normalize type to lowercase for consistent comparison
+			if (config.type && typeof config.type === "string") {
+				config.type = config.type.toLowerCase().trim();
+			}
 		} catch (e) {
 			console.error(`Invalid JSON for scene ${sceneId}:`, e);
 			config = { type: "unknown", active: false, targets: [] };
@@ -74,14 +78,25 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 					td.textContent = config.name || sceneId;
 					break;
 				case "type": {
-					const typeIcon =
-						{
-							recurring: "🔄",
-							once: "1️⃣",
-							manual: "🎮",
-							state: "🔔",
-						}[config.type] || "❓";
-					td.innerHTML = `${typeIcon} ${config.type || "unknown"}`;
+					// Use already normalized config.type, but ensure it's a string
+					const jobType = String(config.type || "")
+						.toLowerCase()
+						.trim();
+					const typeIconMap = {
+						recurring: "🔄",
+						once: "1️⃣",
+						manual: "🎮",
+						state: "🔔",
+						timer: "⏱️",
+					};
+					const typeIcon = typeIconMap[jobType] || "❓";
+					const displayType = config.type || "unknown";
+					td.innerHTML = `${typeIcon} ${displayType}`;
+
+					// Warn if icon not found
+					if (!typeIconMap[jobType] && config.type) {
+						console.warn(`Unknown scene type: "${config.type}" (normalized: "${jobType}")`);
+					}
 					break;
 				}
 				case "active":
@@ -148,6 +163,33 @@ function renderSceneRows(states, basePath, columns, tableBody) {
 			detailsHtml += `</p>`;
 			if (config.debounce) {
 				detailsHtml += `<p><strong>Debounce:</strong> ${config.debounce}ms</p>`;
+			}
+		}
+
+		// Delay (for TIMER jobs) - show for timer type or if delay is present
+		const normalizedType = String(config.type || "")
+			.toLowerCase()
+			.trim();
+
+		if (
+			normalizedType === "timer" ||
+			(config.delay !== undefined && config.delay !== null && config.delay !== "")
+		) {
+			const delaySeconds = Number(config.delay);
+			if (!isNaN(delaySeconds) && delaySeconds > 0) {
+				const delayMinutes = Math.floor(delaySeconds / 60);
+				const delayHours = Math.floor(delayMinutes / 60);
+				let delayText = "";
+				if (delayHours > 0) {
+					delayText = `${delayHours}h ${delayMinutes % 60}m`;
+				} else if (delayMinutes > 0) {
+					delayText = `${delayMinutes}m ${delaySeconds % 60}s`;
+				} else {
+					delayText = `${delaySeconds}s`;
+				}
+				detailsHtml += `<p><strong>Delay:</strong> ${delayText} (${delaySeconds} seconds)</p>`;
+			} else if (normalizedType === "timer") {
+				detailsHtml += `<p style="color: orange;"><strong>Delay:</strong> Missing or invalid (required for timer jobs)</p>`;
 			}
 		}
 

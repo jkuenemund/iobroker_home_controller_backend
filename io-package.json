@@ -1,8 +1,29 @@
 {
   "common": {
     "name": "home_controller_backend",
-    "version": "0.0.2-beta.0",
+    "version": "0.0.4-beta.1",
     "news": {
+      "0.0.4-beta.1": {
+        "en": "Fix repository URLs and update version",
+        "de": "Repository-URLs korrigiert und Version aktualisiert"
+      },
+      "0.0.4-beta.0": {
+        "en": "Fix repository URLs and update dependencies",
+        "de": "Repository-URLs korrigiert und Abhängigkeiten aktualisiert"
+      },
+      "0.0.3-beta.0": {
+        "en": "Add TIMER type support for cron_scenes 0.6.0 - support for delayed scene execution",
+        "de": "TIMER-Type Support für cron_scenes 0.6.0 hinzugefügt - Unterstützung für verzögerte Szenen-Ausführung",
+        "ru": "Добавлена поддержка типа TIMER для cron_scenes 0.6.0 - поддержка отложенного выполнения сцен",
+        "pt": "Adicionado suporte ao tipo TIMER para cron_scenes 0.6.0 - suporte para execução de cena atrasada",
+        "nl": "TIMER-type ondersteuning toegevoegd voor cron_scenes 0.6.0 - ondersteuning voor vertraagde scene-uitvoering",
+        "fr": "Ajout du support du type TIMER pour cron_scenes 0.6.0 - support pour l'exécution de scène différée",
+        "it": "Aggiunto supporto tipo TIMER per cron_scenes 0.6.0 - supporto per esecuzione scena ritardata",
+        "es": "Agregado soporte de tipo TIMER para cron_scenes 0.6.0 - soporte para ejecución de escena retrasada",
+        "pl": "Dodano obsługę typu TIMER dla cron_scenes 0.6.0 - obsługa opóźnionego wykonania sceny",
+        "uk": "Додано підтримку типу TIMER для cron_scenes 0.6.0 - підтримка відкладеної виконання сцени",
+        "zh-cn": "为 cron_scenes 0.6.0 添加 TIMER 类型支持 - 支持延迟场景执行"
+      },
       "0.0.2-beta.0": {
         "en": "fix lint errors",
         "de": "lint fehler beheben",
@@ -85,8 +106,8 @@
     "platform": "Javascript/Node.js",
     "icon": "home_controller_backend.png",
     "enabled": true,
-    "extIcon": "https://raw.githubusercontent.com/jkuenemund/ioBroker.home_controller_backend/main/admin/home_controller_backend.png",
-    "readme": "https://github.com/jkuenemund/ioBroker.home_controller_backend/blob/main/README.md",
+    "extIcon": "https://raw.githubusercontent.com/jkuenemund/iobroker_home_controller_backend/main/admin/home_controller_backend.png",
+    "readme": "https://github.com/jkuenemund/iobroker_home_controller_backend/blob/main/README.md",
     "loglevel": "info",
     "tier": 3,
     "mode": "daemon",

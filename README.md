@@ -155,9 +155,6 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 
 ## Changelog
 ### **WORK IN PROGRESS**
-* (prof) Fix repository URLs in package.json and io-package.json
-* (prof) Update version to 0.0.4-beta.1
-* (prof) Update copyright year to 2026
 
 ### 0.0.3-beta.0 (2025-01-17)
 * (prof) Add TIMER type support for cron_scenes 0.6.0
